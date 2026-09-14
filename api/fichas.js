@@ -7,11 +7,11 @@ module.exports = async (req, res) => {
   const session = requireSession(req);
   if (!session) return res.status(401).json({ error: 'Sessão inválida ou expirada. Faça login novamente.' });
 
-  const admin = getAdmin();
-  const db = admin.firestore();
-  const col = db.collection('fichas');
-
   try {
+    const admin = getAdmin();
+    const db = admin.firestore();
+    const col = db.collection('fichas');
+
     // ---------- LISTAR (hub) ----------
     // GET /api/fichas -> lista fichas do próprio usuário (ou todas, se mestre)
     if (req.method === 'GET' && !req.query.id) {

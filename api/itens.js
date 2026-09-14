@@ -6,15 +6,17 @@ module.exports = async (req, res) => {
   const session = requireSession(req);
   if (!session) return res.status(401).json({ error: 'Sessão inválida ou expirada' });
 
-  const admin = getAdmin();
-  const db = admin.firestore();
-  const col = db.collection('itens');
-
   try {
+    const admin = getAdmin();
+    const db = admin.firestore();
+    const col = db.collection('itens');
+
     // ---------- LISTAR (catálogo completo, todo mundo vê) ----------
     if (req.method === 'GET') {
-      const snap = await col.orderBy('criadoEm', 'desc').get();
-      const lista = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const snap = await col.get();
+      const lista = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .sort((a, b) => (b.criadoEm || 0) - (a.criadoEm || 0));
       return res.status(200).json({ itens: lista });
     }
 
