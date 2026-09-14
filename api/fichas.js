@@ -1,7 +1,5 @@
 // api/fichas.js
-const { getAdmin } = require('../lib/firebase');
-const { requireSession } = require('../lib/auth');
-const { calcularStatusDerivado, fichaVazia } = require('../lib/regras');
+const { getAdmin, requireSession, calcularStatusDerivado, fichaVazia } = require('./_shared');
 
 module.exports = async (req, res) => {
   const session = requireSession(req);
@@ -13,7 +11,6 @@ module.exports = async (req, res) => {
     const col = db.collection('fichas');
 
     // ---------- LISTAR (hub) ----------
-    // GET /api/fichas -> lista fichas do próprio usuário (ou todas, se mestre)
     if (req.method === 'GET' && !req.query.id) {
       let snap;
       if (session.role === 'master') {
@@ -73,20 +70,14 @@ module.exports = async (req, res) => {
       const nova = req.body?.ficha;
       if (!nova) return res.status(400).json({ error: 'Corpo da requisição sem ficha' });
 
-      // Jogadores comuns não podem alterar as informações desconhecidas (só o mestre)
       if (session.role !== 'master') {
         nova.infoDesconhecidas = atual.infoDesconhecidas;
       }
 
-      // Recalcula status derivado no servidor (fonte confiável)
       const derivado = calcularStatusDerivado(nova.atributos || {});
       nova.status = { ...nova.status, ...derivado };
 
-      // Preserva metadados de dono/criação
-      nova._meta = {
-        ...atual._meta,
-        atualizadoEm: Date.now()
-      };
+      nova._meta = { ...atual._meta, atualizadoEm: Date.now() };
 
       await col.doc(id).set(nova);
       return res.status(200).json({ id, ficha: nova });

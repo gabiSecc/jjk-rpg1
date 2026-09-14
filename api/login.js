@@ -1,5 +1,5 @@
 // api/login.js
-const { login } = require('../lib/auth');
+const { login } = require('./_shared');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {

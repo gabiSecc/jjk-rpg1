@@ -1,7 +1,5 @@
 // api/upload-imagem.js
-const { getAdmin } = require('../lib/firebase');
-const { requireSession } = require('../lib/auth');
-const { uploadImagem } = require('../lib/cloudinary');
+const { getAdmin, requireSession, uploadImagem } = require('./_shared');
 
 module.exports = async (req, res) => {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método não permitido' });
@@ -10,20 +8,17 @@ module.exports = async (req, res) => {
   if (!session) return res.status(401).json({ error: 'Sessão inválida ou expirada' });
 
   const { fichaId, tipo, imagemBase64, mimeType } = req.body || {};
-  // tipo: 'banner' | 'token' | 'item'
   if (!imagemBase64 || !tipo || !['banner', 'token', 'item'].includes(tipo)) {
     return res.status(400).json({ error: 'Parâmetros inválidos' });
   }
   if (!mimeType || !mimeType.startsWith('image/')) {
     return res.status(400).json({ error: 'Arquivo precisa ser uma imagem' });
   }
-  // limite ~5MB em base64
   if (imagemBase64.length > 7_000_000) {
     return res.status(413).json({ error: 'Imagem muito grande (máx ~5MB)' });
   }
 
   try {
-    // Permissão: pra banner/token, precisa ser dono da ficha (ou mestre)
     if (tipo !== 'item') {
       if (!fichaId) return res.status(400).json({ error: 'fichaId é obrigatório' });
       const admin = getAdmin();

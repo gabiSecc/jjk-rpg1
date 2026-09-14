@@ -1,6 +1,5 @@
 // api/itens.js
-const { getAdmin } = require('../lib/firebase');
-const { requireSession } = require('../lib/auth');
+const { getAdmin, requireSession } = require('./_shared');
 
 module.exports = async (req, res) => {
   const session = requireSession(req);
@@ -11,7 +10,6 @@ module.exports = async (req, res) => {
     const db = admin.firestore();
     const col = db.collection('itens');
 
-    // ---------- LISTAR (catálogo completo, todo mundo vê) ----------
     if (req.method === 'GET') {
       const snap = await col.get();
       const lista = snap.docs
@@ -20,7 +18,6 @@ module.exports = async (req, res) => {
       return res.status(200).json({ itens: lista });
     }
 
-    // ---------- CRIAR ----------
     if (req.method === 'POST') {
       const { nome, descricao, dano, tipo, imagemUrl } = req.body || {};
       if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome do item é obrigatório' });
@@ -39,7 +36,6 @@ module.exports = async (req, res) => {
       return res.status(201).json({ id: ref.id, item: novo });
     }
 
-    // ---------- DELETAR (só quem criou, ou mestre) ----------
     if (req.method === 'DELETE') {
       const id = req.query.id;
       if (!id) return res.status(400).json({ error: 'ID do item é obrigatório' });
