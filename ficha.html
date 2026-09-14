@@ -4,27 +4,40 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>RPG JJK — Ficha</title>
-<link rel="stylesheet" href="ficha.css">
+<link rel="stylesheet" href="/base.css">
+<link rel="stylesheet" href="/ficha.css">
 </head>
 <body>
 
-<!-- ===================== TOPO ===================== -->
 <header class="topbar">
   <div class="topbar-left">
-    <span class="kanji-mini">呪術</span>
-    <span class="topbar-title">RPG JJK</span>
+    <a href="/hub.html" class="btn btn-ghost btn-sm" style="text-decoration:none;">← Hub</a>
   </div>
   <div class="topbar-right">
-    <select id="selectorFicha" class="selector-ficha"></select>
     <span id="sessionInfo" class="session-info"></span>
-    <button id="btnSalvar" class="btn-save">Salvar ficha</button>
-    <button id="btnLogout" class="btn-logout">Sair</button>
+    <button id="btnSalvar" class="btn btn-primary btn-sm">Salvar ficha</button>
+    <button id="btnLogout" class="btn btn-ghost btn-sm">Sair</button>
   </div>
 </header>
 
 <div id="saveStatus" class="save-status"></div>
 
 <main class="sheet">
+
+  <!-- ===================== BANNER + TOKEN ===================== -->
+  <section class="banner-wrap">
+    <div class="banner" id="bannerBox">
+      <img id="bannerImg" class="banner-img hidden" alt="">
+      <div class="banner-empty" id="bannerEmpty">Sem banner — clique para adicionar</div>
+      <input type="file" id="bannerInput" accept="image/*" class="hidden">
+      <button type="button" class="btn-edit-img" id="btnEditBanner">Trocar banner</button>
+    </div>
+    <div class="token-box" id="tokenBox">
+      <img id="tokenImg" class="token-img hidden" alt="">
+      <span class="token-empty" id="tokenEmpty">+</span>
+      <input type="file" id="tokenInput" accept="image/*" class="hidden">
+    </div>
+  </section>
 
   <!-- ===================== CABEÇALHO / INFO BÁSICA ===================== -->
   <section class="card hero-card">
@@ -104,14 +117,8 @@
     </div>
 
     <div class="status-derived">
-      <div class="derived-item">
-        <span class="derived-label">Bloquear</span>
-        <span class="derived-value" id="disp_bloquear">0</span>
-      </div>
-      <div class="derived-item">
-        <span class="derived-label">Output</span>
-        <span class="derived-value" id="disp_output">0</span>
-      </div>
+      <div class="derived-item"><span class="derived-label">Bloquear</span><span class="derived-value" id="disp_bloquear">0</span></div>
+      <div class="derived-item"><span class="derived-label">Output</span><span class="derived-value" id="disp_output">0</span></div>
     </div>
   </section>
 
@@ -129,53 +136,34 @@
       <label>Nome da técnica</label>
       <input type="text" id="ti_nome" data-path="tecnicaInata.nome">
     </div>
-    <div class="field-block">
-      <label>Descrição</label>
-      <textarea data-path="tecnicaInata.descricao" rows="3"></textarea>
-    </div>
-    <div class="field-block">
-      <label>Funcionamento</label>
-      <textarea data-path="tecnicaInata.funcionamento" rows="3"></textarea>
+    <div class="field-block"><label>Descrição</label><textarea data-path="tecnicaInata.descricao" rows="3"></textarea></div>
+    <div class="field-block"><label>Funcionamento</label><textarea data-path="tecnicaInata.funcionamento" rows="3"></textarea></div>
+    <div class="two-col">
+      <div class="field-block"><label>Condições</label><textarea data-path="tecnicaInata.condicoes" rows="2"></textarea></div>
+      <div class="field-block"><label>Limitações</label><textarea data-path="tecnicaInata.limitacoes" rows="2"></textarea></div>
     </div>
     <div class="two-col">
-      <div class="field-block">
-        <label>Condições</label>
-        <textarea data-path="tecnicaInata.condicoes" rows="2"></textarea>
-      </div>
-      <div class="field-block">
-        <label>Limitações</label>
-        <textarea data-path="tecnicaInata.limitacoes" rows="2"></textarea>
-      </div>
-    </div>
-    <div class="two-col">
-      <div class="field-block">
-        <label>Custos</label>
-        <textarea data-path="tecnicaInata.custos" rows="2"></textarea>
-      </div>
-      <div class="field-block">
-        <label>Efeitos adicionais</label>
-        <textarea data-path="tecnicaInata.efeitosAdicionais" rows="2"></textarea>
-      </div>
+      <div class="field-block"><label>Custos</label><textarea data-path="tecnicaInata.custos" rows="2"></textarea></div>
+      <div class="field-block"><label>Efeitos adicionais</label><textarea data-path="tecnicaInata.efeitosAdicionais" rows="2"></textarea></div>
     </div>
   </section>
 
-  <!-- ===================== HABILIDADES ESPECIAIS (dinâmico) ===================== -->
+  <!-- ===================== HABILIDADES ESPECIAIS ===================== -->
   <section class="card">
     <div class="section-head">
       <h2>Habilidades Especiais / Técnicas</h2>
-      <button class="btn-add" id="btnAddHabilidade" type="button">+ Adicionar habilidade</button>
+      <button class="btn btn-ghost btn-sm" id="btnAddHabilidade" type="button">+ Adicionar habilidade</button>
     </div>
-    <p class="hint">Golpes especiais, aplicações da técnica inata, feitiços — cada um com seu próprio funcionamento e custo.</p>
     <div id="habilidadesList" class="dynamic-list"></div>
   </section>
 
-  <!-- ===================== EXPANSÃO DE DOMÍNIO / TÉCNICAS AMPLIADAS ===================== -->
+  <!-- ===================== DOMÍNIO / TÉCNICAS AVANÇADAS ===================== -->
   <section class="card">
     <div class="section-head">
       <h2>Domínio, Reversão &amp; Técnicas Avançadas</h2>
-      <button class="btn-add" id="btnAddDominio" type="button">+ Adicionar</button>
+      <button class="btn btn-ghost btn-sm" id="btnAddDominio" type="button">+ Adicionar</button>
     </div>
-    <p class="hint">Espaço para Expansão de Domínio, Reversão de Maldição, Amplificação Simples, e outras mecânicas avançadas que ainda faltam ser formalizadas na campanha.</p>
+    <p class="hint">Espaço para Expansão de Domínio, Reversão de Maldição, Amplificação Simples, e outras mecânicas ainda a formalizar.</p>
     <div id="dominioList" class="dynamic-list"></div>
   </section>
 
@@ -183,11 +171,8 @@
   <section class="card">
     <h2>Black Flash</h2>
     <div class="bf-top">
-      <div class="field-block small">
-        <label>Contador total</label>
-        <input type="number" id="bf_contador" data-path="blackFlash.contador" min="0">
-      </div>
-      <button class="btn-add" id="btnAddBF" type="button">+ Registrar Black Flash</button>
+      <div class="field-block small"><label>Contador total</label><input type="number" id="bf_contador" min="0"></div>
+      <button class="btn btn-ghost btn-sm" id="btnAddBF" type="button">+ Registrar Black Flash</button>
     </div>
     <div id="bfList" class="dynamic-list"></div>
   </section>
@@ -196,9 +181,14 @@
   <section class="card">
     <div class="section-head">
       <h2>Inventário</h2>
-      <button class="btn-add" id="btnAddItem" type="button">+ Adicionar item</button>
+      <a href="/itens.html" class="btn btn-ghost btn-sm" style="text-decoration:none;">Catálogo de Itens</a>
     </div>
-    <div id="inventarioList" class="inventory-list"></div>
+    <p class="hint">Adicione itens do catálogo compartilhado da mesa ao inventário deste personagem.</p>
+    <div class="inv-add-row">
+      <select id="invSelectItem"><option value="">Selecione um item do catálogo...</option></select>
+      <button class="btn btn-ghost btn-sm" id="btnAddInvItem" type="button">Adicionar</button>
+    </div>
+    <div id="inventarioList" class="dynamic-list"></div>
   </section>
 
   <!-- ===================== HISTÓRIA / LORE ===================== -->
@@ -271,8 +261,8 @@
     <div id="regrasWrap" class="ref-body">
       <ul class="rules-list">
         <li><strong>Teste de atributo:</strong> 1d20 + (pontos do grau). Ex: +G3 = 1d20 + 6.</li>
-        <li><strong>Vida:</strong> definida pelo Vigor — 10 de vida por ponto de grau. Ex: +G4 (3 pontos) = 30 de vida.</li>
-        <li><strong>Bloquear:</strong> base 5 (emanação padrão de EA). Ao bloquear ativamente, soma-se o ponto de grau do Vigor.</li>
+        <li><strong>Vida:</strong> definida pelo Vigor — 10 de vida por ponto de grau.</li>
+        <li><strong>Bloquear:</strong> base 5 (emanação padrão de EA) + ponto de grau do Vigor.</li>
         <li><strong>Energia Amaldiçoada (máx):</strong> 25 inicial + 50 por ponto de grau de Quantidade de EA.</li>
         <li><strong>Output:</strong> 5 inicial + 20 por ponto de grau de Refino de EA.</li>
       </ul>
@@ -283,7 +273,8 @@
 
 <div id="toast" class="toast"></div>
 
-<script src="config.js"></script>
-<script src="ficha.js"></script>
+<script src="/api-client.js"></script>
+<script src="/regras.js"></script>
+<script src="/ficha.js"></script>
 </body>
 </html>

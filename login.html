@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG JJK — Acesso</title>
+<link rel="stylesheet" href="/base.css">
+<style>
+  body{ display:flex; align-items:center; justify-content:center; padding:24px; }
+  .frame{ width:100%; max-width:420px; }
+  .mark{ text-align:center; margin-bottom:34px; }
+  .mark .kanji{
+    font-family:'Shippori Mincho', serif; font-weight:800; font-size:15px; letter-spacing:.5em;
+    color:var(--curse-glow); display:block; margin-bottom:10px; text-indent:.5em;
+  }
+  .mark h1{ font-size:34px; letter-spacing:.04em; }
+  .mark p{ margin:8px 0 0; color:var(--paper-dim); font-size:13px; letter-spacing:.08em; }
+  form{ position:relative; }
+  form::before{
+    content:""; position:absolute; top:0; left:0; right:0; height:2px;
+    background:linear-gradient(90deg, transparent, var(--curse) 20%, var(--curse-glow) 50%, var(--curse) 80%, transparent);
+  }
+  .field{ margin-bottom:18px; }
+  .err{ color:#e0637a; font-size:13px; margin-top:14px; text-align:center; min-height:16px; }
+  .foot{ text-align:center; margin-top:22px; font-size:11px; color:#4a4552; letter-spacing:.1em; }
+  button[type=submit]{ width:100%; }
+  @media (prefers-reduced-motion: no-preference){
+    .frame{ animation: rise .5s ease both; }
+    @keyframes rise{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+  }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <div class="mark">
+    <span class="kanji">呪術</span>
+    <h1>RPG JJK</h1>
+    <p>ACESSO DE FEITICEIRO</p>
+  </div>
+
+  <form id="loginForm" class="card" autocomplete="off">
+    <div class="field">
+      <label for="user">Usuário</label>
+      <input type="text" id="user" placeholder="rpgjjk_seunome" required>
+    </div>
+    <div class="field">
+      <label for="pass">Senha</label>
+      <input type="password" id="pass" placeholder="••••••••••" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Entrar</button>
+    <div class="err" id="errMsg"></div>
+  </form>
+
+  <div class="foot">DOMÍNIO RESTRITO — SÓ FEITICEIROS REGISTRADOS</div>
+</div>
+
+<script src="/api-client.js"></script>
+<script>
+  if (Api.getSession()) window.location.href = '/hub.html';
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const errMsg = document.getElementById('errMsg');
+    errMsg.textContent = '';
+    const userKey = document.getElementById('user').value.trim();
+    const senha = document.getElementById('pass').value;
+    try {
+      const { token } = await Api.login(userKey, senha);
+      // decodifica payload só pra guardar nome/role localmente (não é validação, só exibição)
+      const payload = JSON.parse(atob(token.split('.')[0]));
+      Api.setSession(token, { userKey: payload.userKey, nome: payload.nome, role: payload.role });
+      window.location.href = '/hub.html';
+    } catch (err) {
+      errMsg.textContent = err.message || 'Usuário ou senha incorretos.';
+    }
+  });
+</script>
+
+</body>
+</html>

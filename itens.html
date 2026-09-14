@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG JJK — Catálogo de Itens</title>
+<link rel="stylesheet" href="/base.css">
+<style>
+  .sheet{ max-width:1000px; margin:0 auto; padding:24px 20px; }
+  .hub-head{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:22px; flex-wrap:wrap; }
+  .hub-head h1{ font-size:24px; margin:0; }
+
+  .grid-itens{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:16px; }
+  .item-card{ background:var(--panel); border:1px solid var(--panel-line); overflow:hidden; position:relative; }
+  .item-img{ height:130px; width:100%; background:var(--panel2) center/cover no-repeat; }
+  .item-img.empty{ display:flex; align-items:center; justify-content:center; color:var(--paper-dimmer); font-size:12px; }
+  .item-body{ padding:14px; }
+  .item-name{ font-family:'Shippori Mincho', serif; font-weight:700; font-size:15px; margin-bottom:4px; }
+  .item-tags{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+  .item-tag{ font-size:10.5px; color:var(--gold); border:1px solid var(--gold); padding:2px 7px; letter-spacing:.03em; }
+  .item-desc{ font-size:12.5px; color:var(--paper-dim); line-height:1.5; }
+  .item-meta{ font-size:11px; color:var(--paper-dimmer); margin-top:10px; }
+  .item-delete{
+    position:absolute; top:8px; right:8px; background:rgba(13,13,16,.7); border:1px solid var(--panel-line);
+    color:var(--paper-dim); width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px;
+  }
+  .item-delete:hover{ border-color:var(--blood-bright); color:var(--blood-bright); }
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center;
+    padding:20px; z-index:200;
+  }
+  .modal-overlay.show{ display:flex; }
+  .modal{ background:var(--panel); border:1px solid var(--panel-line); max-width:460px; width:100%; padding:24px; position:relative; }
+  .modal::before{ content:""; position:absolute; top:0; left:0; width:36px; height:2px; background:var(--curse); }
+  .field-block{ margin-bottom:14px; }
+  .modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
+  .preview-img{ width:100%; height:120px; object-fit:cover; background:var(--panel2); margin-bottom:10px; display:none; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="kanji-mini">呪術</span>
+    <span class="topbar-title">RPG JJK</span>
+  </div>
+  <div class="topbar-right">
+    <a href="/hub.html" class="btn btn-ghost btn-sm" style="text-decoration:none;">← Hub de Fichas</a>
+    <span class="session-info" id="sessionInfo"></span>
+    <button class="btn btn-ghost btn-sm" id="btnLogout">Sair</button>
+  </div>
+</header>
+
+<main class="sheet">
+  <div class="hub-head">
+    <h1>Catálogo de Itens</h1>
+    <button class="btn btn-primary btn-sm" id="btnNovoItem">+ Criar item</button>
+  </div>
+  <p class="hint">Itens criados aqui ficam visíveis para toda a mesa. Qualquer jogador pode criar; só quem criou (ou o mestre) pode remover.</p>
+
+  <div id="gridItens" class="grid-itens"></div>
+</main>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>Novo Item</h2>
+    <img id="previewImg" class="preview-img">
+    <div class="field-block">
+      <label>Imagem</label>
+      <input type="file" id="itImg" accept="image/*">
+    </div>
+    <div class="field-block">
+      <label>Nome</label>
+      <input type="text" id="itNome" placeholder="ex: Talismã de Papel">
+    </div>
+    <div class="field-block">
+      <label>Tipo</label>
+      <input type="text" id="itTipo" placeholder="ex: Arma, Ferramenta, Amaldiçoado...">
+    </div>
+    <div class="field-block">
+      <label>Dano</label>
+      <input type="text" id="itDano" placeholder="ex: 2d6 + EA">
+    </div>
+    <div class="field-block">
+      <label>Descrição</label>
+      <textarea id="itDesc" rows="3" placeholder="Efeitos, história, uso..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" id="btnCancelar">Cancelar</button>
+      <button class="btn btn-primary btn-sm" id="btnSalvarItem">Criar item</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="/api-client.js"></script>
+<script>
+  const session = Api.getSession();
+  if (!session) window.location.href = '/login.html';
+  document.getElementById('sessionInfo').textContent = session.nome + (session.role === 'master' ? ' · Mestre' : '');
+  document.getElementById('btnLogout').addEventListener('click', () => { Api.clearSession(); window.location.href = '/login.html'; });
+
+  function toast(msg, isErr){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isErr ? ' err' : '');
+    clearTimeout(toast._tm);
+    toast._tm = setTimeout(()=> t.classList.remove('show'), 2600);
+  }
+  function escapeHtml(str){
+    if(str === undefined || str === null) return '';
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  async function carregar(){
+    const grid = document.getElementById('gridItens');
+    grid.innerHTML = '<div class="empty-state">Carregando catálogo...</div>';
+    try{
+      const { itens } = await Api.listarItens();
+      grid.innerHTML = '';
+      if(itens.length === 0){
+        grid.innerHTML = '<div class="empty-state">Nenhum item criado ainda. Seja o primeiro!</div>';
+        return;
+      }
+      itens.forEach(it => grid.appendChild(renderItem(it)));
+    }catch(err){
+      grid.innerHTML = '<div class="empty-state">Erro ao carregar: ' + err.message + '</div>';
+    }
+  }
+
+  function renderItem(it){
+    const card = document.createElement('div');
+    card.className = 'item-card';
+    const podeExcluir = session.role === 'master' || it.criadoPorUserKey === session.userKey;
+    card.innerHTML = `
+      ${podeExcluir ? '<button class="item-delete" type="button" title="Excluir item">✕</button>' : ''}
+      ${it.imagemUrl
+        ? `<div class="item-img" style="background-image:url('${it.imagemUrl}')"></div>`
+        : `<div class="item-img empty">sem imagem</div>`}
+      <div class="item-body">
+        <div class="item-name">${escapeHtml(it.nome)}</div>
+        <div class="item-tags">
+          ${it.tipo ? `<span class="item-tag">${escapeHtml(it.tipo)}</span>` : ''}
+          ${it.dano ? `<span class="item-tag">dano: ${escapeHtml(it.dano)}</span>` : ''}
+        </div>
+        <div class="item-desc">${escapeHtml(it.descricao)}</div>
+        <div class="item-meta">criado por ${escapeHtml(it.criadoPor)}</div>
+      </div>
+    `;
+    if(podeExcluir){
+      card.querySelector('.item-delete').addEventListener('click', async () => {
+        if(!confirm(`Excluir o item "${it.nome}"?`)) return;
+        try{ await Api.excluirItem(it.id); toast('Item excluído.'); carregar(); }
+        catch(err){ toast(err.message, true); }
+      });
+    }
+    return card;
+  }
+
+  // ---------- modal criar item ----------
+  const overlay = document.getElementById('modalOverlay');
+  let imagemPendente = null; // { base64, mimeType }
+
+  document.getElementById('btnNovoItem').addEventListener('click', () => {
+    document.getElementById('itNome').value = '';
+    document.getElementById('itTipo').value = '';
+    document.getElementById('itDano').value = '';
+    document.getElementById('itDesc').value = '';
+    document.getElementById('itImg').value = '';
+    document.getElementById('previewImg').style.display = 'none';
+    imagemPendente = null;
+    overlay.classList.add('show');
+  });
+  document.getElementById('btnCancelar').addEventListener('click', () => overlay.classList.remove('show'));
+
+  document.getElementById('itImg').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const { base64, mimeType } = await fileToBase64(file);
+    imagemPendente = { base64, mimeType };
+    const prev = document.getElementById('previewImg');
+    prev.src = 'data:' + mimeType + ';base64,' + base64;
+    prev.style.display = 'block';
+  });
+
+  document.getElementById('btnSalvarItem').addEventListener('click', async () => {
+    const nome = document.getElementById('itNome').value.trim();
+    if(!nome){ toast('Dê um nome ao item.', true); return; }
+
+    const btn = document.getElementById('btnSalvarItem');
+    btn.disabled = true; btn.textContent = 'Salvando...';
+    try{
+      let imagemUrl = '';
+      if(imagemPendente){
+        const up = await Api.uploadImagem(null, 'item', imagemPendente.base64, imagemPendente.mimeType);
+        imagemUrl = up.url;
+      }
+      await Api.criarItem({
+        nome,
+        tipo: document.getElementById('itTipo').value.trim(),
+        dano: document.getElementById('itDano').value.trim(),
+        descricao: document.getElementById('itDesc').value.trim(),
+        imagemUrl
+      });
+      overlay.classList.remove('show');
+      toast('Item criado!');
+      carregar();
+    }catch(err){
+      toast(err.message, true);
+    }finally{
+      btn.disabled = false; btn.textContent = 'Criar item';
+    }
+  });
+
+  carregar();
+</script>
+
+</body>
+</html>

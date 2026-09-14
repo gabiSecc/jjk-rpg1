@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG JJK — Hub de Fichas</title>
+<link rel="stylesheet" href="/base.css">
+<style>
+  .sheet{ max-width:1000px; margin:0 auto; padding:24px 20px; }
+  .hub-head{ display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:22px; flex-wrap:wrap; }
+  .hub-head h1{ font-size:24px; margin:0; }
+  .hub-actions{ display:flex; gap:10px; }
+
+  .grid-fichas{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:18px; }
+
+  .ficha-tile{
+    background:var(--panel); border:1px solid var(--panel-line); overflow:hidden; cursor:pointer;
+    transition:border-color .15s, transform .1s; position:relative;
+  }
+  .ficha-tile:hover{ border-color:var(--curse-glow); transform:translateY(-2px); }
+  .tile-banner{
+    height:110px; width:100%; background:linear-gradient(135deg, var(--panel2), #221f2b);
+    background-size:cover; background-position:center; position:relative;
+  }
+  .tile-token{
+    width:52px; height:52px; border-radius:50%; border:3px solid var(--ink);
+    background:var(--panel2) center/cover no-repeat; position:absolute; left:14px; bottom:-26px;
+    box-shadow:0 2px 8px rgba(0,0,0,.4);
+  }
+  .tile-body{ padding:34px 14px 16px; }
+  .tile-name{ font-family:'Shippori Mincho', serif; font-weight:700; font-size:15.5px; }
+  .tile-owner{ font-size:11px; color:var(--paper-dimmer); margin-top:4px; }
+
+  .tile-delete{
+    position:absolute; top:8px; right:8px; z-index:2; background:rgba(13,13,16,.7);
+    border:1px solid var(--panel-line); color:var(--paper-dim); width:26px; height:26px;
+    border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px;
+  }
+  .tile-delete:hover{ border-color:var(--blood-bright); color:var(--blood-bright); }
+
+  .new-tile{
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+    border:1px dashed var(--panel-line); min-height:190px; color:var(--paper-dimmer);
+    background:transparent; cursor:pointer; transition:border-color .15s, color .15s;
+  }
+  .new-tile:hover{ border-color:var(--curse-glow); color:var(--paper); }
+  .new-tile .plus{ font-size:28px; line-height:1; }
+
+  .section-label{ font-size:12px; letter-spacing:.08em; color:var(--paper-dimmer); margin:28px 0 12px; text-transform:uppercase; }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="kanji-mini">呪術</span>
+    <span class="topbar-title">RPG JJK</span>
+  </div>
+  <div class="topbar-right">
+    <a href="/itens.html" class="btn btn-ghost btn-sm" style="text-decoration:none;">Catálogo de Itens</a>
+    <span class="session-info" id="sessionInfo"></span>
+    <button class="btn btn-ghost btn-sm" id="btnLogout">Sair</button>
+  </div>
+</header>
+
+<main class="sheet">
+  <div class="hub-head">
+    <h1 id="hubTitle">Suas Fichas</h1>
+  </div>
+
+  <div id="gridFichas" class="grid-fichas"></div>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script src="/api-client.js"></script>
+<script>
+  const session = Api.getSession();
+  if (!session) window.location.href = '/login.html';
+
+  document.getElementById('sessionInfo').textContent = session.nome + (session.role === 'master' ? ' · Mestre' : '');
+  document.getElementById('hubTitle').textContent = session.role === 'master' ? 'Todas as Fichas (Mestre)' : 'Suas Fichas';
+  document.getElementById('btnLogout').addEventListener('click', () => { Api.clearSession(); window.location.href = '/login.html'; });
+
+  function toast(msg, isErr){
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show' + (isErr ? ' err' : '');
+    clearTimeout(toast._tm);
+    toast._tm = setTimeout(()=> t.classList.remove('show'), 2600);
+  }
+
+  async function carregar(){
+    const grid = document.getElementById('gridFichas');
+    grid.innerHTML = '<div class="empty-state">Carregando fichas...</div>';
+    try{
+      const { fichas } = await Api.listarFichas();
+      grid.innerHTML = '';
+
+      const novo = document.createElement('button');
+      novo.className = 'new-tile';
+      novo.type = 'button';
+      novo.innerHTML = '<span class="plus">+</span><span>Nova ficha</span>';
+      novo.addEventListener('click', criarFicha);
+      grid.appendChild(novo);
+
+      fichas.forEach(f => grid.appendChild(renderTile(f)));
+    }catch(err){
+      grid.innerHTML = '<div class="empty-state">Erro ao carregar fichas: ' + err.message + '</div>';
+    }
+  }
+
+  function renderTile(f){
+    const tile = document.createElement('div');
+    tile.className = 'ficha-tile';
+    const bannerStyle = f.bannerUrl ? `background-image:url('${f.bannerUrl}')` : '';
+    const tokenStyle = f.tokenUrl ? `background-image:url('${f.tokenUrl}')` : '';
+    tile.innerHTML = `
+      <button class="tile-delete" type="button" title="Excluir ficha">✕</button>
+      <div class="tile-banner" style="${bannerStyle}">
+        <div class="tile-token" style="${tokenStyle}"></div>
+      </div>
+      <div class="tile-body">
+        <div class="tile-name">${escapeHtml(f.nome)}</div>
+        ${session.role === 'master' ? `<div class="tile-owner">${escapeHtml(f.donoUserKey || '')}</div>` : ''}
+      </div>
+    `;
+    tile.addEventListener('click', (e) => {
+      if (e.target.closest('.tile-delete')) return;
+      window.location.href = '/ficha.html?id=' + encodeURIComponent(f.id);
+    });
+    tile.querySelector('.tile-delete').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm(`Excluir a ficha "${f.nome}"? Isso não pode ser desfeito.`)) return;
+      try{
+        await Api.excluirFicha(f.id);
+        toast('Ficha excluída.');
+        carregar();
+      }catch(err){ toast(err.message, true); }
+    });
+    return tile;
+  }
+
+  async function criarFicha(){
+    const nome = prompt('Nome do novo personagem:');
+    if (nome === null) return;
+    try{
+      const { id } = await Api.criarFicha(nome.trim() || 'Novo Feiticeiro');
+      window.location.href = '/ficha.html?id=' + encodeURIComponent(id);
+    }catch(err){ toast(err.message, true); }
+  }
+
+  function escapeHtml(str){
+    if(str === undefined || str === null) return '';
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  carregar();
+</script>
+
+</body>
+</html>
