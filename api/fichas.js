@@ -17,10 +17,9 @@ module.exports = async (req, res) => {
     if (req.method === 'GET' && !req.query.id) {
       let snap;
       if (session.role === 'master') {
-        snap = await col.orderBy('_meta.criadoEm', 'desc').get();
+        snap = await col.get();
       } else {
-        snap = await col.where('_meta.donoUserKey', '==', session.userKey)
-                         .orderBy('_meta.criadoEm', 'desc').get();
+        snap = await col.where('_meta.donoUserKey', '==', session.userKey).get();
       }
       const lista = snap.docs.map(d => {
         const f = d.data();
@@ -30,9 +29,10 @@ module.exports = async (req, res) => {
           tokenUrl: f.imagens?.tokenUrl || '',
           bannerUrl: f.imagens?.bannerUrl || '',
           donoUserKey: f._meta?.donoUserKey,
+          criadoEm: f._meta?.criadoEm || 0,
           atualizadoEm: f._meta?.atualizadoEm
         };
-      });
+      }).sort((a, b) => (b.criadoEm || 0) - (a.criadoEm || 0));
       return res.status(200).json({ fichas: lista });
     }
 
