@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG JJK — Ficha</title>
+<link rel="stylesheet" href="ficha.css">
+</head>
+<body>
+
+<!-- ===================== TOPO ===================== -->
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="kanji-mini">呪術</span>
+    <span class="topbar-title">RPG JJK</span>
+  </div>
+  <div class="topbar-right">
+    <select id="selectorFicha" class="selector-ficha"></select>
+    <span id="sessionInfo" class="session-info"></span>
+    <button id="btnSalvar" class="btn-save">Salvar ficha</button>
+    <button id="btnLogout" class="btn-logout">Sair</button>
+  </div>
+</header>
+
+<div id="saveStatus" class="save-status"></div>
+
+<main class="sheet">
+
+  <!-- ===================== CABEÇALHO / INFO BÁSICA ===================== -->
+  <section class="card hero-card">
+    <div class="hero-grid">
+      <div class="field-block wide">
+        <label>Nome</label>
+        <input type="text" id="f_nome" data-path="basico.nome">
+      </div>
+      <div class="field-block">
+        <label>Técnica</label>
+        <input type="text" id="f_tecnica" data-path="basico.tecnica">
+      </div>
+      <div class="field-block">
+        <label>Clã</label>
+        <input type="text" id="f_cla" data-path="basico.cla">
+      </div>
+      <div class="field-block">
+        <label>Classe</label>
+        <input type="text" id="f_classe" data-path="basico.classe">
+      </div>
+      <div class="field-block">
+        <label>Nacionalidade</label>
+        <input type="text" id="f_nacionalidade" data-path="basico.nacionalidade">
+      </div>
+      <div class="field-block small">
+        <label>Idade</label>
+        <input type="text" id="f_idade" data-path="basico.idade">
+      </div>
+      <div class="field-block small">
+        <label>Altura</label>
+        <input type="text" id="f_altura" data-path="basico.altura">
+      </div>
+      <div class="field-block small">
+        <label>Peso</label>
+        <input type="text" id="f_peso" data-path="basico.peso">
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== DESCRIÇÃO ===================== -->
+  <section class="card">
+    <h2>Descrição</h2>
+    <textarea id="f_descricao" data-path="descricao" rows="4" placeholder="Aparência, trejeitos, presença física..."></textarea>
+  </section>
+
+  <!-- ===================== STATUS ===================== -->
+  <section class="card status-card">
+    <h2>Status</h2>
+
+    <div class="status-row emo-row">
+      <div class="field-block wide">
+        <label>Emoção atual</label>
+        <input type="text" id="f_emocaoAtual" data-path="status.emocaoAtual" placeholder="ex: Foco, Raiva, Medo...">
+      </div>
+      <div class="field-block wide">
+        <label>Buff / Debuff da emoção</label>
+        <input type="text" id="f_buffDebuffEmocao" data-path="status.buffDebuffEmocao" placeholder="efeito mecânico da emoção atual">
+      </div>
+    </div>
+
+    <div class="status-bars">
+      <div class="bar-block">
+        <div class="bar-label">
+          <span>Vida</span>
+          <span><input type="number" id="f_vidaAtual" data-path="status.vidaAtual" class="bar-num"> / <span id="disp_vidaMax">0</span></span>
+        </div>
+        <div class="bar-track"><div id="bar_vida" class="bar-fill bar-vida"></div></div>
+      </div>
+
+      <div class="bar-block">
+        <div class="bar-label">
+          <span>Energia Amaldiçoada</span>
+          <span><input type="number" id="f_eaAtual" data-path="status.eaAtual" class="bar-num"> / <span id="disp_eaMax">0</span></span>
+        </div>
+        <div class="bar-track"><div id="bar_ea" class="bar-fill bar-ea"></div></div>
+      </div>
+    </div>
+
+    <div class="status-derived">
+      <div class="derived-item">
+        <span class="derived-label">Bloquear</span>
+        <span class="derived-value" id="disp_bloquear">0</span>
+      </div>
+      <div class="derived-item">
+        <span class="derived-label">Output</span>
+        <span class="derived-value" id="disp_output">0</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ATRIBUTOS ===================== -->
+  <section class="card">
+    <h2>Atributos</h2>
+    <p class="hint">Escolha o grau de cada atributo. O modificador de teste (1d20 + mod) é calculado automaticamente pela Tabela de Grau.</p>
+    <div class="attr-grid" id="attrGrid"></div>
+  </section>
+
+  <!-- ===================== TÉCNICA INATA ===================== -->
+  <section class="card">
+    <h2>Técnica Inata</h2>
+    <div class="field-block">
+      <label>Nome da técnica</label>
+      <input type="text" id="ti_nome" data-path="tecnicaInata.nome">
+    </div>
+    <div class="field-block">
+      <label>Descrição</label>
+      <textarea data-path="tecnicaInata.descricao" rows="3"></textarea>
+    </div>
+    <div class="field-block">
+      <label>Funcionamento</label>
+      <textarea data-path="tecnicaInata.funcionamento" rows="3"></textarea>
+    </div>
+    <div class="two-col">
+      <div class="field-block">
+        <label>Condições</label>
+        <textarea data-path="tecnicaInata.condicoes" rows="2"></textarea>
+      </div>
+      <div class="field-block">
+        <label>Limitações</label>
+        <textarea data-path="tecnicaInata.limitacoes" rows="2"></textarea>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field-block">
+        <label>Custos</label>
+        <textarea data-path="tecnicaInata.custos" rows="2"></textarea>
+      </div>
+      <div class="field-block">
+        <label>Efeitos adicionais</label>
+        <textarea data-path="tecnicaInata.efeitosAdicionais" rows="2"></textarea>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== HABILIDADES ESPECIAIS (dinâmico) ===================== -->
+  <section class="card">
+    <div class="section-head">
+      <h2>Habilidades Especiais / Técnicas</h2>
+      <button class="btn-add" id="btnAddHabilidade" type="button">+ Adicionar habilidade</button>
+    </div>
+    <p class="hint">Golpes especiais, aplicações da técnica inata, feitiços — cada um com seu próprio funcionamento e custo.</p>
+    <div id="habilidadesList" class="dynamic-list"></div>
+  </section>
+
+  <!-- ===================== EXPANSÃO DE DOMÍNIO / TÉCNICAS AMPLIADAS ===================== -->
+  <section class="card">
+    <div class="section-head">
+      <h2>Domínio, Reversão &amp; Técnicas Avançadas</h2>
+      <button class="btn-add" id="btnAddDominio" type="button">+ Adicionar</button>
+    </div>
+    <p class="hint">Espaço para Expansão de Domínio, Reversão de Maldição, Amplificação Simples, e outras mecânicas avançadas que ainda faltam ser formalizadas na campanha.</p>
+    <div id="dominioList" class="dynamic-list"></div>
+  </section>
+
+  <!-- ===================== BLACK FLASH ===================== -->
+  <section class="card">
+    <h2>Black Flash</h2>
+    <div class="bf-top">
+      <div class="field-block small">
+        <label>Contador total</label>
+        <input type="number" id="bf_contador" data-path="blackFlash.contador" min="0">
+      </div>
+      <button class="btn-add" id="btnAddBF" type="button">+ Registrar Black Flash</button>
+    </div>
+    <div id="bfList" class="dynamic-list"></div>
+  </section>
+
+  <!-- ===================== INVENTÁRIO ===================== -->
+  <section class="card">
+    <div class="section-head">
+      <h2>Inventário</h2>
+      <button class="btn-add" id="btnAddItem" type="button">+ Adicionar item</button>
+    </div>
+    <div id="inventarioList" class="inventory-list"></div>
+  </section>
+
+  <!-- ===================== HISTÓRIA / LORE ===================== -->
+  <section class="card">
+    <h2>História / Lore</h2>
+    <textarea data-path="historiaLore" rows="6"></textarea>
+  </section>
+
+  <!-- ===================== PERSONALIDADE ===================== -->
+  <section class="card">
+    <h2>Personalidade</h2>
+    <div class="two-col">
+      <div class="field-block"><label>Personalidade</label><textarea data-path="personalidade.personalidade" rows="2"></textarea></div>
+      <div class="field-block"><label>Gostos</label><textarea data-path="personalidade.gostos" rows="2"></textarea></div>
+      <div class="field-block"><label>Desgostos</label><textarea data-path="personalidade.desgostos" rows="2"></textarea></div>
+      <div class="field-block"><label>Medos</label><textarea data-path="personalidade.medos" rows="2"></textarea></div>
+      <div class="field-block"><label>Objetivos</label><textarea data-path="personalidade.objetivos" rows="2"></textarea></div>
+      <div class="field-block"><label>Motivações</label><textarea data-path="personalidade.motivacoes" rows="2"></textarea></div>
+      <div class="field-block"><label>Manias</label><textarea data-path="personalidade.manias" rows="2"></textarea></div>
+    </div>
+  </section>
+
+  <!-- ===================== RELACIONAMENTOS ===================== -->
+  <section class="card">
+    <h2>Relacionamentos</h2>
+    <div class="two-col">
+      <div class="field-block"><label>Família</label><textarea data-path="relacionamentos.familia" rows="2"></textarea></div>
+      <div class="field-block"><label>Aliados</label><textarea data-path="relacionamentos.aliados" rows="2"></textarea></div>
+      <div class="field-block"><label>Amigos</label><textarea data-path="relacionamentos.amigos" rows="2"></textarea></div>
+      <div class="field-block"><label>Rivais</label><textarea data-path="relacionamentos.rivais" rows="2"></textarea></div>
+      <div class="field-block"><label>Inimigos</label><textarea data-path="relacionamentos.inimigos" rows="2"></textarea></div>
+      <div class="field-block"><label>Mentor(es)</label><textarea data-path="relacionamentos.mentores" rows="2"></textarea></div>
+    </div>
+  </section>
+
+  <!-- ===================== OBSERVAÇÕES ===================== -->
+  <section class="card">
+    <h2>Observações</h2>
+    <textarea data-path="observacoes" rows="4"></textarea>
+  </section>
+
+  <!-- ===================== INFO DESCONHECIDAS (Mestre) ===================== -->
+  <section class="card master-only" id="cardSegredos">
+    <h2>Informações Desconhecidas <span class="badge-master">visível só pelo Mestre</span></h2>
+    <div class="two-col">
+      <div class="field-block"><label>Segredos</label><textarea data-path="infoDesconhecidas.segredos" rows="2"></textarea></div>
+      <div class="field-block"><label>Potencial oculto</label><textarea data-path="infoDesconhecidas.potencialOculto" rows="2"></textarea></div>
+      <div class="field-block"><label>Habilidades desconhecidas</label><textarea data-path="infoDesconhecidas.habilidadesDesconhecidas" rows="2"></textarea></div>
+      <div class="field-block"><label>Condições desconhecidas</label><textarea data-path="infoDesconhecidas.condicoesDesconhecidas" rows="2"></textarea></div>
+      <div class="field-block"><label>Outros</label><textarea data-path="infoDesconhecidas.outros" rows="2"></textarea></div>
+    </div>
+  </section>
+
+  <!-- ===================== TABELA DE GRAU (referência) ===================== -->
+  <section class="card ref-card">
+    <div class="section-head collapsible" id="toggleTabela">
+      <h2>Tabela de Grau (referência)</h2>
+      <span class="chev">▾</span>
+    </div>
+    <div id="tabelaGrauWrap" class="ref-body">
+      <table class="ref-table" id="tabelaGrauTable"></table>
+    </div>
+  </section>
+
+  <section class="card ref-card">
+    <div class="section-head collapsible" id="toggleRegras">
+      <h2>Regras de Cálculo (referência)</h2>
+      <span class="chev">▾</span>
+    </div>
+    <div id="regrasWrap" class="ref-body">
+      <ul class="rules-list">
+        <li><strong>Teste de atributo:</strong> 1d20 + (pontos do grau). Ex: +G3 = 1d20 + 6.</li>
+        <li><strong>Vida:</strong> definida pelo Vigor — 10 de vida por ponto de grau. Ex: +G4 (3 pontos) = 30 de vida.</li>
+        <li><strong>Bloquear:</strong> base 5 (emanação padrão de EA). Ao bloquear ativamente, soma-se o ponto de grau do Vigor.</li>
+        <li><strong>Energia Amaldiçoada (máx):</strong> 25 inicial + 50 por ponto de grau de Quantidade de EA.</li>
+        <li><strong>Output:</strong> 5 inicial + 20 por ponto de grau de Refino de EA.</li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script src="config.js"></script>
+<script src="ficha.js"></script>
+</body>
+</html>

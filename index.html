@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG JJK — Acesso</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;800&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap');
+
+  :root{
+    --ink:#0d0d10;
+    --panel:#151319;
+    --panel-line:#2a2530;
+    --paper:#e9e4da;
+    --paper-dim:#b6afa2;
+    --curse:#7c2ae8;
+    --curse-glow:#a56bff;
+    --blood:#8f1d2c;
+    --gold:#c9a13b;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    background:
+      radial-gradient(ellipse at 20% -10%, rgba(124,42,232,.18), transparent 55%),
+      radial-gradient(ellipse at 90% 110%, rgba(143,29,44,.14), transparent 50%),
+      var(--ink);
+    color:var(--paper);
+    font-family:'Zen Kaku Gothic New', sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+    overflow-x:hidden;
+  }
+
+  .frame{
+    width:100%;
+    max-width:420px;
+    position:relative;
+  }
+
+  .mark{
+    text-align:center;
+    margin-bottom:34px;
+  }
+  .mark .kanji{
+    font-family:'Shippori Mincho', serif;
+    font-weight:800;
+    font-size:15px;
+    letter-spacing:.5em;
+    color:var(--curse-glow);
+    display:block;
+    margin-bottom:10px;
+    text-indent:.5em; /* offset for letter-spacing on last char */
+  }
+  .mark h1{
+    font-family:'Shippori Mincho', serif;
+    font-weight:800;
+    font-size:34px;
+    margin:0;
+    letter-spacing:.04em;
+  }
+  .mark p{
+    margin:8px 0 0;
+    color:var(--paper-dim);
+    font-size:13px;
+    letter-spacing:.08em;
+  }
+
+  form{
+    background:var(--panel);
+    border:1px solid var(--panel-line);
+    padding:32px 28px;
+    position:relative;
+  }
+  form::before{
+    content:"";
+    position:absolute;
+    top:0; left:0; right:0;
+    height:2px;
+    background:linear-gradient(90deg, transparent, var(--curse) 20%, var(--curse-glow) 50%, var(--curse) 80%, transparent);
+  }
+
+  label{
+    display:block;
+    font-size:12px;
+    color:var(--paper-dim);
+    letter-spacing:.06em;
+    margin-bottom:6px;
+  }
+  .field{margin-bottom:18px;}
+  input{
+    width:100%;
+    background:#0f0d13;
+    border:1px solid var(--panel-line);
+    color:var(--paper);
+    padding:12px 14px;
+    font-size:15px;
+    font-family:inherit;
+    transition:border-color .15s;
+  }
+  input:focus{
+    outline:none;
+    border-color:var(--curse-glow);
+  }
+
+  button{
+    width:100%;
+    padding:13px;
+    margin-top:8px;
+    background:var(--blood);
+    color:var(--paper);
+    border:none;
+    font-family:'Shippori Mincho', serif;
+    font-weight:800;
+    font-size:15px;
+    letter-spacing:.1em;
+    cursor:pointer;
+    transition:background .15s, transform .08s;
+    position:relative;
+    overflow:hidden;
+  }
+  button:hover{background:#a3273a;}
+  button:active{transform:scale(.99);}
+
+  .err{
+    color:#e0637a;
+    font-size:13px;
+    margin-top:14px;
+    text-align:center;
+    min-height:16px;
+    letter-spacing:.03em;
+  }
+
+  .foot{
+    text-align:center;
+    margin-top:22px;
+    font-size:11px;
+    color:#4a4552;
+    letter-spacing:.1em;
+  }
+
+  @media (prefers-reduced-motion: no-preference){
+    .frame{ animation: rise .5s ease both; }
+    @keyframes rise{
+      from{ opacity:0; transform:translateY(10px); }
+      to{ opacity:1; transform:translateY(0); }
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="frame">
+  <div class="mark">
+    <span class="kanji">呪術</span>
+    <h1>RPG JJK</h1>
+    <p>ACESSO DE FEITICEIRO</p>
+  </div>
+
+  <form id="loginForm" autocomplete="off">
+    <div class="field">
+      <label for="user">Usuário</label>
+      <input type="text" id="user" placeholder="rpgjjk_seunome" required>
+    </div>
+    <div class="field">
+      <label for="pass">Senha</label>
+      <input type="password" id="pass" placeholder="••••••••••" required>
+    </div>
+    <button type="submit">Entrar</button>
+    <div class="err" id="errMsg"></div>
+  </form>
+
+  <div class="foot">DOMÍNIO RESTRITO — SÓ FEITICEIROS REGISTRADOS</div>
+</div>
+
+<script src="config.js"></script>
+<script>
+  const form = document.getElementById('loginForm');
+  const errMsg = document.getElementById('errMsg');
+
+  // Se já logado, manda direto pra ficha
+  const sess = sessionStorage.getItem('rpgjjk_session');
+  if(sess){
+    window.location.href = 'ficha.html';
+  }
+
+  form.addEventListener('submit', function(e){
+    e.preventDefault();
+    const user = document.getElementById('user').value.trim();
+    const pass = document.getElementById('pass').value;
+
+    const u = USERS[user];
+    if(!u || u.senha !== pass){
+      errMsg.textContent = 'Usuário ou senha incorretos.';
+      return;
+    }
+
+    sessionStorage.setItem('rpgjjk_session', JSON.stringify({ user, nome: u.nome, role: u.role }));
+    window.location.href = 'ficha.html';
+  });
+</script>
+
+</body>
+</html>
