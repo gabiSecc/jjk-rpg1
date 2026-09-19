@@ -1,0 +1,6 @@
+ENCONTRAR:
+    <a href="/itens.html" class="btn btn-ghost btn-sm" style="text-decoration:none;">Catálogo de Itens</a>
+
+TROCAR POR:
+    <a href="/livro.html" class="btn btn-ghost btn-sm" style="text-decoration:none;">Livro de Regras</a>
+    <a href="/itens.html" class="btn btn-ghost btn-sm" style="text-decoration:none;">Catálogo de Itens</a>

@@ -12,6 +12,7 @@
 <header class="topbar">
   <div class="topbar-left">
     <a href="/hub.html" class="btn btn-ghost btn-sm" style="text-decoration:none;">← Hub</a>
+    <a href="/livro.html" class="btn btn-ghost btn-sm" style="text-decoration:none;">Livro de Regras</a>
   </div>
   <div class="topbar-right">
     <span id="sessionInfo" class="session-info"></span>
@@ -24,7 +25,6 @@
 
 <main class="sheet">
 
-  <!-- ===================== BANNER + TOKEN ===================== -->
   <section class="banner-wrap">
     <div class="banner" id="bannerBox">
       <img id="bannerImg" class="banner-img hidden" alt="">
@@ -39,63 +39,30 @@
     </div>
   </section>
 
-  <!-- ===================== CABEÇALHO / INFO BÁSICA ===================== -->
   <section class="card hero-card">
     <div class="hero-grid">
-      <div class="field-block wide">
-        <label>Nome</label>
-        <input type="text" id="f_nome" data-path="basico.nome">
-      </div>
-      <div class="field-block">
-        <label>Técnica</label>
-        <input type="text" id="f_tecnica" data-path="basico.tecnica">
-      </div>
-      <div class="field-block">
-        <label>Clã</label>
-        <input type="text" id="f_cla" data-path="basico.cla">
-      </div>
-      <div class="field-block">
-        <label>Classe</label>
-        <input type="text" id="f_classe" data-path="basico.classe">
-      </div>
-      <div class="field-block">
-        <label>Nacionalidade</label>
-        <input type="text" id="f_nacionalidade" data-path="basico.nacionalidade">
-      </div>
-      <div class="field-block small">
-        <label>Idade</label>
-        <input type="text" id="f_idade" data-path="basico.idade">
-      </div>
-      <div class="field-block small">
-        <label>Altura</label>
-        <input type="text" id="f_altura" data-path="basico.altura">
-      </div>
-      <div class="field-block small">
-        <label>Peso</label>
-        <input type="text" id="f_peso" data-path="basico.peso">
-      </div>
+      <div class="field-block wide"><label>Nome</label><input type="text" id="f_nome" data-path="basico.nome"></div>
+      <div class="field-block"><label>Técnica</label><input type="text" id="f_tecnica" data-path="basico.tecnica"></div>
+      <div class="field-block"><label>Clã</label><input type="text" id="f_cla" data-path="basico.cla"></div>
+      <div class="field-block"><label>Classe</label><input type="text" id="f_classe" data-path="basico.classe"></div>
+      <div class="field-block"><label>Nacionalidade</label><input type="text" id="f_nacionalidade" data-path="basico.nacionalidade"></div>
+      <div class="field-block small"><label>Idade</label><input type="text" id="f_idade" data-path="basico.idade"></div>
+      <div class="field-block small"><label>Altura</label><input type="text" id="f_altura" data-path="basico.altura"></div>
+      <div class="field-block small"><label>Peso</label><input type="text" id="f_peso" data-path="basico.peso"></div>
     </div>
   </section>
 
-  <!-- ===================== DESCRIÇÃO ===================== -->
   <section class="card">
     <h2>Descrição</h2>
     <textarea id="f_descricao" data-path="descricao" rows="4" placeholder="Aparência, trejeitos, presença física..."></textarea>
   </section>
 
-  <!-- ===================== STATUS ===================== -->
   <section class="card status-card">
     <h2>Status</h2>
 
     <div class="status-row emo-row">
-      <div class="field-block wide">
-        <label>Emoção atual</label>
-        <input type="text" id="f_emocaoAtual" data-path="status.emocaoAtual" placeholder="ex: Foco, Raiva, Medo...">
-      </div>
-      <div class="field-block wide">
-        <label>Buff / Debuff da emoção</label>
-        <input type="text" id="f_buffDebuffEmocao" data-path="status.buffDebuffEmocao" placeholder="efeito mecânico da emoção atual">
-      </div>
+      <div class="field-block wide"><label>Emoção atual</label><input type="text" id="f_emocaoAtual" data-path="status.emocaoAtual" placeholder="ex: Foco, Raiva, Medo..."></div>
+      <div class="field-block wide"><label>Buff / Debuff da emoção</label><input type="text" id="f_buffDebuffEmocao" data-path="status.buffDebuffEmocao" placeholder="efeito mecânico da emoção atual"></div>
     </div>
 
     <div class="status-bars">
@@ -106,7 +73,6 @@
         </div>
         <div class="bar-track"><div id="bar_vida" class="bar-fill bar-vida"></div></div>
       </div>
-
       <div class="bar-block">
         <div class="bar-label">
           <span>Energia Amaldiçoada</span>
@@ -120,22 +86,24 @@
       <div class="derived-item"><span class="derived-label">Bloquear</span><span class="derived-value" id="disp_bloquear">0</span></div>
       <div class="derived-item"><span class="derived-label">Output</span><span class="derived-value" id="disp_output">0</span></div>
     </div>
+    <div class="kokusen-note" id="disp_kokusenMult"></div>
   </section>
 
-  <!-- ===================== ATRIBUTOS ===================== -->
   <section class="card">
-    <h2>Atributos</h2>
-    <p class="hint">Escolha o grau de cada atributo. O modificador de teste (1d20 + mod) é calculado automaticamente pela Tabela de Grau.</p>
+    <div class="section-head">
+      <h2>Atributos</h2>
+      <button type="button" id="btnMecanicaKaue" class="btn btn-ghost btn-sm">Mecânica do Kauê: inativa</button>
+    </div>
+    <p class="hint">Escolha o grau de cada atributo. O modificador de teste (1d20 + mod) vem da Tabela de Grau. Com a Mecânica do Kauê ativa (só o mestre liga), o botão + sobe 1 grau.</p>
     <div class="attr-grid" id="attrGrid"></div>
   </section>
 
-  <!-- ===================== TÉCNICA INATA ===================== -->
   <section class="card">
-    <h2>Técnica Inata</h2>
-    <div class="field-block">
-      <label>Nome da técnica</label>
-      <input type="text" id="ti_nome" data-path="tecnicaInata.nome">
+    <div class="section-head">
+      <h2>Técnica Inata</h2>
+      <select id="ti_grau" class="grau-select"></select>
     </div>
+    <div class="field-block"><label>Nome da técnica</label><input type="text" id="ti_nome" data-path="tecnicaInata.nome"></div>
     <div class="field-block"><label>Descrição</label><textarea data-path="tecnicaInata.descricao" rows="3"></textarea></div>
     <div class="field-block"><label>Funcionamento</label><textarea data-path="tecnicaInata.funcionamento" rows="3"></textarea></div>
     <div class="two-col">
@@ -146,9 +114,17 @@
       <div class="field-block"><label>Custos</label><textarea data-path="tecnicaInata.custos" rows="2"></textarea></div>
       <div class="field-block"><label>Efeitos adicionais</label><textarea data-path="tecnicaInata.efeitosAdicionais" rows="2"></textarea></div>
     </div>
+
+    <h3 class="sub-title">Stacks de Maldições Mortas</h3>
+    <p class="hint">Cada maldição morta dá 0,25 stack do grau dela. Subir de grau divide por 2; descer multiplica por 2.</p>
+    <div id="stacksGrid" class="stacks-grid"></div>
+    <div class="stack-total-row">
+      <label>Converter total para:</label>
+      <select id="stackAlvo" class="grau-select"></select>
+      <span id="stackTotal" class="stack-total"></span>
+    </div>
   </section>
 
-  <!-- ===================== HABILIDADES ESPECIAIS ===================== -->
   <section class="card">
     <div class="section-head">
       <h2>Habilidades Especiais / Técnicas</h2>
@@ -157,7 +133,6 @@
     <div id="habilidadesList" class="dynamic-list"></div>
   </section>
 
-  <!-- ===================== DOMÍNIO / TÉCNICAS AVANÇADAS ===================== -->
   <section class="card">
     <div class="section-head">
       <h2>Domínio, Reversão &amp; Técnicas Avançadas</h2>
@@ -167,9 +142,9 @@
     <div id="dominioList" class="dynamic-list"></div>
   </section>
 
-  <!-- ===================== BLACK FLASH ===================== -->
   <section class="card">
-    <h2>Black Flash</h2>
+    <h2>Black Flash (Kokusen)</h2>
+    <p class="hint">Cada Kokusen multiplica sua Energia Amaldiçoada máxima e seu Output por ×1,2 (composto, sem limite).</p>
     <div class="bf-top">
       <div class="field-block small"><label>Contador total</label><input type="number" id="bf_contador" min="0"></div>
       <button class="btn btn-ghost btn-sm" id="btnAddBF" type="button">+ Registrar Black Flash</button>
@@ -177,7 +152,6 @@
     <div id="bfList" class="dynamic-list"></div>
   </section>
 
-  <!-- ===================== INVENTÁRIO ===================== -->
   <section class="card">
     <div class="section-head">
       <h2>Inventário</h2>
@@ -191,13 +165,8 @@
     <div id="inventarioList" class="dynamic-list"></div>
   </section>
 
-  <!-- ===================== HISTÓRIA / LORE ===================== -->
-  <section class="card">
-    <h2>História / Lore</h2>
-    <textarea data-path="historiaLore" rows="6"></textarea>
-  </section>
+  <section class="card"><h2>História / Lore</h2><textarea data-path="historiaLore" rows="6"></textarea></section>
 
-  <!-- ===================== PERSONALIDADE ===================== -->
   <section class="card">
     <h2>Personalidade</h2>
     <div class="two-col">
@@ -211,7 +180,6 @@
     </div>
   </section>
 
-  <!-- ===================== RELACIONAMENTOS ===================== -->
   <section class="card">
     <h2>Relacionamentos</h2>
     <div class="two-col">
@@ -224,13 +192,8 @@
     </div>
   </section>
 
-  <!-- ===================== OBSERVAÇÕES ===================== -->
-  <section class="card">
-    <h2>Observações</h2>
-    <textarea data-path="observacoes" rows="4"></textarea>
-  </section>
+  <section class="card"><h2>Observações</h2><textarea data-path="observacoes" rows="4"></textarea></section>
 
-  <!-- ===================== INFO DESCONHECIDAS (Mestre) ===================== -->
   <section class="card master-only" id="cardSegredos">
     <h2>Informações Desconhecidas <span class="badge-master">visível só pelo Mestre</span></h2>
     <div class="two-col">
@@ -242,29 +205,21 @@
     </div>
   </section>
 
-  <!-- ===================== TABELA DE GRAU (referência) ===================== -->
   <section class="card ref-card">
-    <div class="section-head collapsible" id="toggleTabela">
-      <h2>Tabela de Grau (referência)</h2>
-      <span class="chev">▾</span>
-    </div>
-    <div id="tabelaGrauWrap" class="ref-body">
-      <table class="ref-table" id="tabelaGrauTable"></table>
-    </div>
+    <div class="section-head collapsible" id="toggleTabela"><h2>Tabela de Grau (referência)</h2><span class="chev">▾</span></div>
+    <div id="tabelaGrauWrap" class="ref-body"><table class="ref-table" id="tabelaGrauTable"></table></div>
   </section>
 
   <section class="card ref-card">
-    <div class="section-head collapsible" id="toggleRegras">
-      <h2>Regras de Cálculo (referência)</h2>
-      <span class="chev">▾</span>
-    </div>
+    <div class="section-head collapsible" id="toggleRegras"><h2>Regras de Cálculo (referência)</h2><span class="chev">▾</span></div>
     <div id="regrasWrap" class="ref-body">
       <ul class="rules-list">
         <li><strong>Teste de atributo:</strong> 1d20 + (pontos do grau). Ex: +G3 = 1d20 + 6.</li>
-        <li><strong>Vida:</strong> definida pelo Vigor — 10 de vida por ponto de grau.</li>
-        <li><strong>Bloquear:</strong> base 5 (emanação padrão de EA) + ponto de grau do Vigor.</li>
-        <li><strong>Energia Amaldiçoada (máx):</strong> 25 inicial + 50 por ponto de grau de Quantidade de EA.</li>
-        <li><strong>Output:</strong> 5 inicial + 20 por ponto de grau de Refino de EA.</li>
+        <li><strong>Vida:</strong> 10 por ponto de grau de Vigor.</li>
+        <li><strong>Bloquear:</strong> 5 + pontos de grau do Vigor.</li>
+        <li><strong>EA máxima:</strong> dobra a cada 3 graus, com stacks intermediários (ver Livro de Regras).</li>
+        <li><strong>Output:</strong> 20 por ponto de grau de Refino de EA (Restrito = 0).</li>
+        <li><strong>Kokusen:</strong> cada um multiplica EA e Output por ×1,2 (composto).</li>
       </ul>
     </div>
   </section>

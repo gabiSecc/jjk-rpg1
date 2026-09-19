@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RPG JJK — Livro de Regras</title>
+<link rel="stylesheet" href="/base.css">
+<style>
+  .layout{ display:grid; grid-template-columns:240px 1fr; gap:28px; max-width:1100px; margin:0 auto; padding:24px 20px; }
+  @media (max-width:860px){ .layout{ grid-template-columns:1fr; } .toc{ position:static !important; } }
+  .toc{ position:sticky; top:76px; align-self:start; background:var(--panel); border:1px solid var(--panel-line); padding:16px; max-height:calc(100vh - 100px); overflow:auto; }
+  .toc h3{ font-size:13px; letter-spacing:.08em; color:var(--paper-dimmer); text-transform:uppercase; margin-bottom:10px; }
+  .toc a{ display:block; color:var(--paper-dim); text-decoration:none; font-size:13px; padding:5px 0; border-left:2px solid transparent; padding-left:10px; }
+  .toc a:hover{ color:var(--paper); border-left-color:var(--curse-glow); }
+  main{ min-width:0; }
+  .cover{ text-align:center; padding:28px 10px 10px; }
+  .cover .kanji{ font-family:'Shippori Mincho',serif; color:var(--curse-glow); letter-spacing:.5em; font-size:15px; display:block; margin-bottom:10px; }
+  .cover h1{ font-size:34px; }
+  .cover p{ color:var(--paper-dim); max-width:560px; margin:8px auto 0; font-size:14px; line-height:1.6; }
+
+  details.cap{ background:var(--panel); border:1px solid var(--panel-line); margin-bottom:16px; position:relative; }
+  details.cap::before{ content:""; position:absolute; top:0; left:0; width:36px; height:2px; background:var(--curse); }
+  details.cap > summary{ cursor:pointer; padding:18px 22px; font-family:'Shippori Mincho',serif; font-weight:800; font-size:19px; list-style:none; display:flex; justify-content:space-between; align-items:center; }
+  details.cap > summary::-webkit-details-marker{ display:none; }
+  details.cap > summary::after{ content:'▾'; color:var(--paper-dimmer); transition:transform .2s; }
+  details.cap:not([open]) > summary::after{ transform:rotate(-90deg); }
+  .cap-body{ padding:0 22px 22px; font-size:14.5px; line-height:1.75; color:var(--paper-dim); }
+  .cap-body h3{ font-size:16px; margin:22px 0 8px; color:var(--paper); }
+  .cap-body p{ margin:0 0 12px; }
+  .cap-body strong{ color:var(--paper); }
+  .cap-body ul{ padding-left:20px; margin:0 0 12px; }
+  .cap-body li{ margin-bottom:4px; }
+
+  .formula{ font-family:'JetBrains Mono',monospace; background:#0f0d13; border:1px solid var(--panel-line); border-left:3px solid var(--curse); padding:12px 16px; color:var(--gold); margin:12px 0; font-size:13.5px; overflow-x:auto; }
+  .exemplo{ background:var(--panel2); border:1px solid var(--panel-line); border-left:3px solid var(--gold); padding:12px 16px; margin:12px 0; font-size:13.5px; }
+  .exemplo b{ color:var(--gold); }
+  .aviso{ background:rgba(143,29,44,.12); border:1px solid var(--blood); padding:12px 16px; margin:12px 0; font-size:13.5px; }
+  .em-breve{ border:1px dashed var(--panel-line); padding:20px; text-align:center; color:var(--paper-dimmer); font-style:italic; }
+
+  .tbl-wrap{ overflow-x:auto; margin:12px 0; }
+  table.t{ width:100%; border-collapse:collapse; font-size:12.5px; }
+  table.t th, table.t td{ border:1px solid var(--panel-line); padding:6px 9px; text-align:left; }
+  table.t th{ background:var(--panel2); color:var(--paper); font-size:12px; }
+  table.t td{ font-family:'JetBrains Mono',monospace; }
+  table.t td.d{ font-family:'Zen Kaku Gothic New',sans-serif; color:var(--paper-dim); min-width:220px; }
+  table.t tr:hover td{ background:rgba(124,42,232,.06); }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-left">
+    <span class="kanji-mini">呪術</span>
+    <span class="topbar-title">Livro de Regras</span>
+  </div>
+  <div class="topbar-right">
+    <a href="/hub.html" class="btn btn-ghost btn-sm" style="text-decoration:none;">← Hub de Fichas</a>
+    <span class="session-info" id="sessionInfo"></span>
+    <button class="btn btn-ghost btn-sm" id="btnLogout">Sair</button>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="toc">
+    <h3>Índice</h3>
+    <a href="#intro">1. Como o jogo funciona</a>
+    <a href="#graus">2. Tabela de Grau</a>
+    <a href="#atributos">3. Atributos</a>
+    <a href="#status">4. Status</a>
+    <a href="#ea">5. Energia Amaldiçoada</a>
+    <a href="#output">6. Output</a>
+    <a href="#kokusen">7. Black Flash (Kokusen)</a>
+    <a href="#tecnica">8. Técnica Inata e Stacks</a>
+    <a href="#kaue">9. Mecânica do Kauê</a>
+    <a href="#selos">10. Selos de Mão</a>
+    <a href="#exemplos">11. Exemplo completo</a>
+  </nav>
+
+  <main>
+    <div class="cover">
+      <span class="kanji">呪術廻戦</span>
+      <h1>Livro de Regras</h1>
+      <p>Tudo que você precisa para criar, evoluir e jogar com seu feiticeiro. Clique em um capítulo para abrir ou fechar.</p>
+    </div>
+
+    <details class="cap" id="intro" open>
+      <summary>1. Como o jogo funciona</summary>
+      <div class="cap-body">
+        <p>Você interpreta um <strong>feiticeiro</strong>. Tudo que ele faz é medido por <strong>graus</strong>: uma escala de <strong>RESTRITO</strong> (0) a <strong>++++Calamidade</strong> (30).</p>
+        <p>Cada grau vale uma quantidade de <strong>pontos</strong>. Esses pontos viram o <strong>bônus nos seus testes</strong> e alimentam seus status (Vida, EA, Output).</p>
+        <div class="exemplo"><b>Resumo em uma linha:</b> escolha o grau → o grau vira pontos → os pontos viram bônus e status.</div>
+        <h3>Como fazer um teste</h3>
+        <div class="formula">1d20 + pontos do grau do atributo</div>
+        <div class="exemplo"><b>Exemplo:</b> Combate +G3 = 6 pontos. Teste: <b>1d20 + 6</b>.</div>
+      </div>
+    </details>
+
+    <details class="cap" id="graus" open>
+      <summary>2. Tabela de Grau</summary>
+      <div class="cap-body">
+        <p>É a régua do jogo. Quanto maior o grau, mais poderoso o feiticeiro. As colunas mostram o que cada grau te dá <em>se for usado</em> em Quantidade de EA (coluna EA base) ou em Refino de EA (coluna Output).</p>
+        <div class="tbl-wrap">
+          <table class="t">
+            <tr><th>Grau</th><th>Pontos</th><th>Teste</th><th>EA base</th><th>Output base</th><th>Significado</th></tr>
+            <tr><td>RESTRITO</td><td>0</td><td>1d20 + 0</td><td>0</td><td>0</td><td class="d">Sem energia amaldiçoada utilizável. ou abaixo do nível humano.</td></tr><tr><td>-G4</td><td>1</td><td>1d20 + 1</td><td>50</td><td>20</td><td class="d">Abaixo de um feiticeiro comum; mais próximo de um humano comum.</td></tr><tr><td>G4</td><td>2</td><td>1d20 + 2</td><td>75</td><td>40</td><td class="d">Nível de um feiticeiro comum.</td></tr><tr><td>+G4</td><td>3</td><td>1d20 + 3</td><td>100</td><td>60</td><td class="d">Acima do feiticeiro comum; à beira de ser G3.</td></tr><tr><td>-G3</td><td>4</td><td>1d20 + 4</td><td>200</td><td>80</td><td class="d">Feiticeiro sólido em missões de rotina.</td></tr><tr><td>G3</td><td>5</td><td>1d20 + 5</td><td>250</td><td>100</td><td class="d">Profissional confiável contra maldições de grau 3.</td></tr><tr><td>+G3</td><td>6</td><td>1d20 + 6</td><td>300</td><td>120</td><td class="d">Veterano de campo; ameaça real para G3 e alguns G2.</td></tr><tr><td>-semi G2</td><td>7</td><td>1d20 + 7</td><td>400</td><td>140</td><td class="d">Ponte entre feiticeiros comuns e de nível superior.</td></tr><tr><td>semi G2</td><td>8</td><td>1d20 + 8</td><td>500</td><td>160</td><td class="d">Combatente tático. sustenta lutas longas contra G2.</td></tr><tr><td>+semi G2</td><td>9</td><td>1d20 + 9</td><td>600</td><td>180</td><td class="d">Quase G2 pleno; a técnica já define o resultado da luta.</td></tr><tr><td>-G2</td><td>10</td><td>1d20 + 10</td><td>800</td><td>200</td><td class="d">Feiticeiro experiente. lidera equipes em missões de risco.</td></tr><tr><td>G2</td><td>11</td><td>1d20 + 11</td><td>1.000</td><td>220</td><td class="d">Pilar das operações da Jujutsu.</td></tr><tr><td>+G2</td><td>12</td><td>1d20 + 12</td><td>1.200</td><td>240</td><td class="d">Topo do G2; a um passo da elite.</td></tr><tr><td>-semi G1</td><td>13</td><td>1d20 + 13</td><td>1.600</td><td>260</td><td class="d">Talento fora da curva; cotado para grau 1.</td></tr><tr><td>semi G1</td><td>14</td><td>1d20 + 14</td><td>2.000</td><td>280</td><td class="d">Elite emergente. derrota G1 em condições favoráveis.</td></tr><tr><td>+semi G1</td><td>15</td><td>1d20 + 15</td><td>2.400</td><td>300</td><td class="d">Praticamente G1; falta só a chancela oficial.</td></tr><tr><td>-G1</td><td>16</td><td>1d20 + 16</td><td>3.200</td><td>320</td><td class="d">Feiticeiro de elite. um dos poucos capazes de enfrentar maldições de grau 1.</td></tr><tr><td>G1</td><td>17</td><td>1d20 + 17</td><td>4.000</td><td>340</td><td class="d">Elite da Jujutsu. Uma missão G1 sem ele custa vidas.</td></tr><tr><td>+G1</td><td>18</td><td>1d20 + 18</td><td>4.800</td><td>360</td><td class="d">Topo dos G1; sua presença muda o rumo de qualquer confronto.</td></tr><tr><td>-semi Especial</td><td>19</td><td>1d20 + 19</td><td>6.400</td><td>380</td><td class="d">Aproxima-se do limiar Especial; poucos no mundo chegam aqui.</td></tr><tr><td>semi Especial</td><td>20</td><td>1d20 + 20</td><td>8.000</td><td>400</td><td class="d">Poder que rivaliza com maldições especiais.</td></tr><tr><td>+semi Especial</td><td>21</td><td>1d20 + 21</td><td>9.600</td><td>420</td><td class="d">A um passo dos monstros; um exército em uma pessoa.</td></tr><tr><td>-Especial</td><td>22</td><td>1d20 + 22</td><td>12.800</td><td>440</td><td class="d">Grau Especial iniciante. Uma anomalia entre os feiticeiros.</td></tr><tr><td>Especial</td><td>23</td><td>1d20 + 23</td><td>16.000</td><td>460</td><td class="d">Um dos feiticeiros mais fortes do mundo.</td></tr><tr><td>+Especial</td><td>24</td><td>1d20 + 24</td><td>19.200</td><td>480</td><td class="d">Topo do Especial; poucos mortais chegam perto.</td></tr><tr><td>-Calamidade</td><td>25</td><td>1d20 + 25</td><td>25.600</td><td>500</td><td class="d">Poder capaz de derrubar cidades.</td></tr><tr><td>Calamidade</td><td>26</td><td>1d20 + 26</td><td>32.000</td><td>520</td><td class="d">Um desastre ambulante; altera o equilíbrio do mundo.</td></tr><tr><td>+Calamidade</td><td>27</td><td>1d20 + 27</td><td>38.400</td><td>540</td><td class="d">Controle absoluto sobre o próprio campo de batalha.</td></tr><tr><td>++Calamidade</td><td>28</td><td>1d20 + 28</td><td>51.200</td><td>560</td><td class="d">Além do que a Jujutsu sabe medir.</td></tr><tr><td>+++Calamidade</td><td>29</td><td>1d20 + 29</td><td>64.000</td><td>580</td><td class="d">Perto do divino.</td></tr><tr><td>++++Calamidade</td><td>30</td><td>1d20 + 30</td><td>76.800</td><td>600</td><td class="d">O ápice absoluto: um fenômeno.</td></tr>
+          </table>
+        </div>
+        <div class="aviso"><strong>Atenção:</strong> Restrito vale 0 pontos. Quem é Restrito tem Output 0 e EA 0 (sem energia amaldiçoada utilizável).</div>
+      </div>
+    </details>
+
+    <details class="cap" id="atributos">
+      <summary>3. Atributos</summary>
+      <div class="cap-body">
+        <p>Todo personagem tem 8 atributos. Cada um recebe um grau da tabela.</p>
+        <ul>
+          <li><strong>Quantidade de Energia Amaldiçoada:</strong> o tamanho do seu reservatório de EA.</li>
+          <li><strong>Refino de Energia Amaldiçoada:</strong> a qualidade da sua EA (define o Output).</li>
+          <li><strong>Combate:</strong> luta corpo a corpo e com armas.</li>
+          <li><strong>Agilidade:</strong> reflexos, esquiva e coordenação.</li>
+          <li><strong>Intelecto:</strong> raciocínio tático e conhecimento.</li>
+          <li><strong>Vigor:</strong> resistência física; define Vida e Bloquear.</li>
+          <li><strong>Presença:</strong> aura, intimidação e força de vontade.</li>
+          <li><strong>Velocidade:</strong> rapidez de movimento e ação.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="cap" id="status">
+      <summary>4. Status</summary>
+      <div class="cap-body">
+        <h3>Vida</h3>
+        <p>Definida pelo <strong>Vigor</strong>. Cada ponto de grau dá <strong>10 de Vida</strong>.</p>
+        <div class="formula">Vida máxima = pontos de Vigor × 10</div>
+        <div class="exemplo"><b>Exemplo:</b> Vigor +G4 (3 pts) → 30 de Vida.</div>
+        <h3>Bloquear</h3>
+        <p>Todo feiticeiro pode se emanar com energia amaldiçoada e ganha um <strong>bloqueio padrão de 5</strong> contra ataques em EM. Ao bloquear, soma-se o ponto de grau do Vigor.</p>
+        <div class="formula">Bloquear = 5 + pontos de Vigor</div>
+      </div>
+    </details>
+
+    <details class="cap" id="ea">
+      <summary>5. Energia Amaldiçoada (EA)</summary>
+      <div class="cap-body">
+        <p>Definida pelo atributo <strong>Quantidade de EA</strong>. A cada <strong>3 graus</strong> o valor <strong>dobra</strong>. Dentro de cada faixa de 3 graus, você ganha <strong>stacks</strong> intermediários.</p>
+        <div class="formula">Faixa 1 (-G4, G4, +G4): 50 → 75 → 100<br>Faixa 2 (-G3, G3, +G3): 200 → 250 → 300<br>Faixa 3 (-semi G2 ...): 400 → 500 → 600<br>Faixa 4 (-G2 ...): 800 → 1000 → 1200</div>
+        <p>A cada nova faixa, a base dobra e o tamanho do stack também dobra. A tabela completa está no capítulo 2.</p>
+        <div class="exemplo"><b>Exemplo:</b> Quantidade de EA <b>+G3</b> (6 pts) → faixa 2, terceira posição → <b>300 de EA</b>.</div>
+        <div class="aviso"><strong>Restrito</strong> não possui EA (valor 0).</div>
+      </div>
+    </details>
+
+    <details class="cap" id="output">
+      <summary>6. Output</summary>
+      <div class="cap-body">
+        <p>Definido pelo <strong>Refino de EA</strong>. Mede a potência que você consegue tirar da sua energia. Cada ponto de grau vale <strong>20 de Output</strong>.</p>
+        <div class="formula">Output = pontos de Refino × 20</div>
+        <div class="exemplo"><b>Exemplo:</b> Refino -G4 (1 pt) → Output 20. Refino Restrito (0 pt) → Output 0.</div>
+      </div>
+    </details>
+
+    <details class="cap" id="kokusen">
+      <summary>7. Black Flash (Kokusen)</summary>
+      <div class="cap-body">
+        <p>O Kokusen é um golpe perfeito que distorce o espaço. A cada Kokusen conectado, sua <strong>EA máxima</strong> e seu <strong>Output</strong> ficam <strong>20% maiores</strong> em cima do valor atual — ou seja, os aumentos se acumulam (juros compostos). <strong>Não há limite.</strong></p>
+        <div class="formula">Valor final = valor base × 1,2 ^ (nº de Kokusen)</div>
+        <div class="exemplo"><b>Exemplo:</b> EA base 300, 3 Kokusen → 300 × 1,2³ = <b>518</b>. Output base 60, 3 Kokusen → <b>104</b>.</div>
+        <p>Na ficha, basta registrar cada Black Flash. O cálculo é automático.</p>
+      </div>
+    </details>
+
+    <details class="cap" id="tecnica">
+      <summary>8. Técnica Inata e Stacks de Maldições Mortas</summary>
+      <div class="cap-body">
+        <h3>Grau da técnica</h3>
+        <p>A Técnica Inata e as Habilidades Especiais possuem um <strong>grau próprio</strong>, escolhido ao lado do nome. A técnica <strong>evolui junto com o jogador</strong>: sobe para o mesmo grau que ele.</p>
+        <h3>Stacks de maldições mortas</h3>
+        <p>Algumas técnicas ficam mais fortes conforme o feiticeiro derrota maldições. Cada maldição morta soma <strong>0,25 stack</strong> do <strong>grau dela</strong>. Os stacks são guardados por grau.</p>
+        <div class="formula">1 maldição morta = 0,25 stack do grau dela</div>
+        <h3>Conversão entre graus</h3>
+        <ul>
+          <li><strong>Subir de grau:</strong> divide por 2.</li>
+          <li><strong>Descer de grau:</strong> multiplica por 2.</li>
+        </ul>
+        <div class="exemplo"><b>Exemplo:</b> 3 maldições G3 mortas = 0,75 stack de G3 = <b>1,50 stack de G4</b> = 0,375 stack de semi G2.</div>
+        <p>Na ficha, você escolhe em qual grau quer ver o total convertido.</p>
+      </div>
+    </details>
+
+    <details class="cap" id="kaue">
+      <summary>9. Mecânica do Kauê</summary>
+      <div class="cap-body">
+        <p>Uma regra especial de evolução. Só o <strong>Mestre</strong> pode ativá-la na ficha do personagem.</p>
+        <p>Com ela ativa, aparece um botão <strong>+</strong> ao lado de cada atributo. Cada ponto usado <strong>sobe 1 grau</strong> naquele atributo.</p>
+        <div class="exemplo"><b>Exemplo:</b> Atributo RESTRITO, 2 pontos → -G4 → <b>G4</b>. Atributo -G3, 3 pontos → -G3 → G3 → +G3 → <b>-semi G2</b>.</div>
+        <div class="aviso">O botão só aparece se o Mestre ativar a mecânica. Jogadores não conseguem ativá-la sozinhos.</div>
+      </div>
+    </details>
+
+    <details class="cap" id="selos">
+      <summary>10. Selos de Mão</summary>
+      <div class="cap-body">
+        <div class="em-breve">Este capítulo será revelado ao longo da história. É um ponto importante da campanha — aguarde o Mestre.</div>
+      </div>
+    </details>
+
+    <details class="cap" id="exemplos">
+      <summary>11. Exemplo completo: montando um feiticeiro</summary>
+      <div class="cap-body">
+        <p>Vamos montar o <strong>Rin</strong>, um feiticeiro G3.</p>
+        <ul>
+          <li>Vigor <strong>G3</strong> (5 pts) → Vida <strong>50</strong>, Bloquear <strong>10</strong>.</li>
+          <li>Quantidade de EA <strong>G3</strong> (5 pts) → faixa 2, posição 2 → EA <strong>250</strong>.</li>
+          <li>Refino de EA <strong>G3</strong> (5 pts) → Output <strong>100</strong>.</li>
+          <li>Combate <strong>+G3</strong> (6 pts) → teste <strong>1d20 + 6</strong>.</li>
+        </ul>
+        <p>Depois de <strong>2 Kokusen</strong>:</p>
+        <ul>
+          <li>EA: 250 × 1,2² = <strong>360</strong></li>
+          <li>Output: 100 × 1,2² = <strong>144</strong></li>
+        </ul>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script src="/api-client.js"></script>
+<script>
+  const session = Api.getSession();
+  if (!session) window.location.href = '/login.html';
+  document.getElementById('sessionInfo').textContent = session.nome + (session.role === 'master' ? ' · Mestre' : '');
+  document.getElementById('btnLogout').addEventListener('click', () => { Api.clearSession(); window.location.href = '/login.html'; });
+  // abre o capítulo ao clicar no índice
+  document.querySelectorAll('.toc a').forEach(a => a.addEventListener('click', () => {
+    const el = document.querySelector(a.getAttribute('href'));
+    if (el && el.tagName === 'DETAILS') el.open = true;
+  }));
+</script>
+</body>
+</html>

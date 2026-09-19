@@ -10,14 +10,10 @@ module.exports = async (req, res) => {
     const db = admin.firestore();
     const col = db.collection('fichas');
 
-    // ---------- LISTAR (hub) ----------
     if (req.method === 'GET' && !req.query.id) {
       let snap;
-      if (session.role === 'master') {
-        snap = await col.get();
-      } else {
-        snap = await col.where('_meta.donoUserKey', '==', session.userKey).get();
-      }
+      if (session.role === 'master') snap = await col.get();
+      else snap = await col.where('_meta.donoUserKey', '==', session.userKey).get();
       const lista = snap.docs.map(d => {
         const f = d.data();
         return {
@@ -33,7 +29,6 @@ module.exports = async (req, res) => {
       return res.status(200).json({ fichas: lista });
     }
 
-    // ---------- LER UMA ----------
     if (req.method === 'GET' && req.query.id) {
       const doc = await col.doc(req.query.id).get();
       if (!doc.exists) return res.status(404).json({ error: 'Ficha não encontrada' });
@@ -44,7 +39,6 @@ module.exports = async (req, res) => {
       return res.status(200).json({ id: doc.id, ficha: f });
     }
 
-    // ---------- CRIAR ----------
     if (req.method === 'POST') {
       const nome = (req.body?.nome || 'Novo Feiticeiro').trim();
       const nova = fichaVazia(nome);
@@ -55,7 +49,6 @@ module.exports = async (req, res) => {
       return res.status(201).json({ id: ref.id, ficha: nova });
     }
 
-    // ---------- ATUALIZAR ----------
     if (req.method === 'PUT') {
       const id = req.query.id;
       if (!id) return res.status(400).json({ error: 'ID da ficha é obrigatório' });
@@ -70,31 +63,30 @@ module.exports = async (req, res) => {
       const nova = req.body?.ficha;
       if (!nova) return res.status(400).json({ error: 'Corpo da requisição sem ficha' });
 
+      // Jogador não mexe em segredos nem na flag da Mecânica do Kauê
       if (session.role !== 'master') {
         nova.infoDesconhecidas = atual.infoDesconhecidas;
+        nova.mecanicaKaue = atual.mecanicaKaue || { ativo: false };
       }
+      nova.mecanicaKaue = nova.mecanicaKaue || { ativo: false };
 
-      const derivado = calcularStatusDerivado(nova.atributos || {});
+      const derivado = calcularStatusDerivado(nova.atributos || {}, nova.blackFlash?.contador || 0);
       nova.status = { ...nova.status, ...derivado };
-
       nova._meta = { ...atual._meta, atualizadoEm: Date.now() };
 
       await col.doc(id).set(nova);
       return res.status(200).json({ id, ficha: nova });
     }
 
-    // ---------- DELETAR ----------
     if (req.method === 'DELETE') {
       const id = req.query.id;
       if (!id) return res.status(400).json({ error: 'ID da ficha é obrigatório' });
-
       const doc = await col.doc(id).get();
       if (!doc.exists) return res.status(404).json({ error: 'Ficha não encontrada' });
       const atual = doc.data();
       if (session.role !== 'master' && atual._meta?.donoUserKey !== session.userKey) {
         return res.status(403).json({ error: 'Você não tem permissão para excluir esta ficha' });
       }
-
       await col.doc(id).delete();
       return res.status(200).json({ ok: true });
     }
