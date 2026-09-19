@@ -8,7 +8,7 @@ const fichaId = params.get('id');
 if (!fichaId) window.location.href = '/hub.html';
 
 let ficha = null;
-let catalogoItens = [];
+let catalogoItens = []; // cache do catálogo pra montar o select do inventário
 let dirty = false;
 
 document.getElementById('sessionInfo').textContent = session.nome + (session.role === 'master' ? ' · Mestre' : '');
@@ -37,70 +37,20 @@ function setPath(obj, path, value){
   for(let i=0;i<keys.length-1;i++) cur = cur[keys[i]];
   cur[keys[keys.length-1]] = value;
 }
-function fmt(n){ return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 2 }); }
 
 window.addEventListener('beforeunload', (e) => { if(dirty){ e.preventDefault(); e.returnValue=''; } });
 
 // ============================================================
-// DESCRIÇÕES DOS GRAUS (tom Jujutsu)
-// ============================================================
-const DESC_GRAU = {
-  'RESTRITO': 'Sem energia amaldiçoada utilizável, ou abaixo do nível humano. Não enxerga maldições.',
-  '-G4': 'Abaixo de um feiticeiro comum; mais próximo de um humano comum com um fio de energia.',
-  'G4': 'Nível de um feiticeiro comum. Cumpre missões básicas contra maldições fracas.',
-  '+G4': 'Acima do feiticeiro comum; à beira de ser promovido a G3.',
-  '-G3': 'Feiticeiro sólido em missões de rotina. Ainda sofre contra maldições organizadas.',
-  'G3': 'Profissional confiável, capaz de exorcizar maldições de grau 3 sozinho.',
-  '+G3': 'Veterano de campo, ameaça real para maldições de grau 3 e alguns grau 2.',
-  '-semi G2': 'Ponte entre feiticeiros comuns e de nível superior; já chama atenção da Jujutsu.',
-  'semi G2': 'Combatente tático, consegue sustentar lutas longas contra maldições G2.',
-  '+semi G2': 'Quase G2 pleno; sua técnica já começa a definir o resultado da luta.',
-  '-G2': 'Feiticeiro experiente, já lidera equipes em missões de risco.',
-  'G2': 'Pilar das operações da Jujutsu; enfrenta maldições de grau 2 com segurança.',
-  '+G2': 'Topo do G2. Um passo de ser reconhecido como elite.',
-  '-semi G1': 'Talento fora da curva. Superiores começam a considerá-lo para grau 1.',
-  'semi G1': 'Reconhecido como elite emergente, capaz de derrotar G1 em condições favoráveis.',
-  '+semi G1': 'Praticamente G1; só falta o título e a chancela oficial.',
-  '-G1': 'Feiticeiro de elite, um dos poucos capazes de enfrentar maldições de grau 1.',
-  'G1': 'Elite da Jujutsu. Uma missão G1 sem ele custa vidas.',
-  '+G1': 'Topo dos G1. Sua presença muda o rumo de qualquer confronto.',
-  '-semi Especial': 'Aproxima-se do limiar Especial; poucos no mundo chegam aqui.',
-  'semi Especial': 'Poder que rivaliza com maldições especiais. Convocado para crises nacionais.',
-  '+semi Especial': 'A um passo da categoria dos monstros; um exército em uma pessoa.',
-  '-Especial': 'Grau Especial iniciante. Uma anomalia entre os feiticeiros.',
-  'Especial': 'Um dos feiticeiros mais fortes do mundo. Ameaça e salvação ao mesmo tempo.',
-  '+Especial': 'Topo do Especial; poucos mortais chegam perto.',
-  '-Calamidade': 'Poder capaz de derrubar cidades. Não é mais tratado como humano comum.',
-  'Calamidade': 'Um desastre ambulante. Sua existência altera o equilíbrio do mundo.',
-  '+Calamidade': 'Calamidade plena, com controle absoluto sobre o próprio campo de batalha.',
-  '++Calamidade': 'Além do que a Jujutsu sabe medir. Lendas viram sussurros perto dele.',
-  '+++Calamidade': 'Perto do divino; só maldições ancestrais e mestres de era existem nesse nível.',
-  '++++Calamidade': 'O ápice absoluto. Mais que feiticeiro: um fenômeno.'
-};
-
-// ============================================================
 // CARREGAR / SALVAR
 // ============================================================
-function normalizarFicha(f){
-  f.mecanicaKaue = f.mecanicaKaue || { ativo: false };
-  f.tecnicaInata = f.tecnicaInata || {};
-  if(!f.tecnicaInata.grau) f.tecnicaInata.grau = 'G4';
-  f.stacksMalditos = f.stacksMalditos || {};
-  FAIXAS_STACK.forEach(k => { if(f.stacksMalditos[k] === undefined) f.stacksMalditos[k] = 0; });
-  f.habilidadesEspeciais = f.habilidadesEspeciais || [];
-  f.habilidadesEspeciais.forEach(h => { if(!h.grau) h.grau = 'G4'; });
-  f.inventario = f.inventario || [];
-  f.tecnicasDominio = f.tecnicasDominio || [];
-  f.blackFlash = f.blackFlash || { contador: 0, historico: [] };
-  f.blackFlash.historico = f.blackFlash.historico || [];
-  return f;
-}
-
 async function carregar(){
   setSaveStatus('Carregando ficha...');
   try{
-    const [{ ficha: f }, { itens }] = await Promise.all([Api.obterFicha(fichaId), Api.listarItens()]);
-    ficha = normalizarFicha(f);
+    const [{ ficha: f }, { itens }] = await Promise.all([
+      Api.obterFicha(fichaId),
+      Api.listarItens()
+    ]);
+    ficha = f;
     catalogoItens = itens;
     setSaveStatus('');
     renderAll();
@@ -113,12 +63,10 @@ async function salvar(){
   setSaveStatus('Salvando...');
   try{
     const { ficha: atualizada } = await Api.salvarFicha(fichaId, ficha);
-    ficha = normalizarFicha(atualizada);
+    ficha = atualizada;
     dirty = false;
     setSaveStatus('Ficha salva ✓', 'ok');
-    renderStatusDerivado();
-    renderAtributos();
-    renderStacks();
+    renderStatusDerivado(); // reflete o cálculo oficial vindo do servidor
     setTimeout(()=> setSaveStatus(''), 2500);
   }catch(err){
     setSaveStatus('Erro ao salvar: ' + err.message, 'err');
@@ -132,11 +80,8 @@ document.getElementById('btnSalvar').addEventListener('click', salvar);
 function renderAll(){
   renderImagens();
   bindSimpleFields();
-  renderMecanicaKaue();
   renderAtributos();
   renderStatusDerivado();
-  renderTecnicaGrau();
-  renderStacks();
   renderHabilidades();
   renderDominio();
   renderBlackFlash();
@@ -164,6 +109,7 @@ function renderImagens(){
     bannerImg.classList.add('hidden');
     bannerEmpty.classList.remove('hidden');
   }
+
   if(ficha.imagens?.tokenUrl){
     tokenImg.src = ficha.imagens.tokenUrl;
     tokenImg.classList.remove('hidden');
@@ -173,9 +119,18 @@ function renderImagens(){
     tokenEmpty.classList.remove('hidden');
   }
 }
-document.getElementById('btnEditBanner').addEventListener('click', (e) => { e.stopPropagation(); document.getElementById('bannerInput').click(); });
-document.getElementById('bannerBox').addEventListener('click', () => document.getElementById('bannerInput').click());
-document.getElementById('tokenBox').addEventListener('click', () => document.getElementById('tokenInput').click());
+
+document.getElementById('btnEditBanner').addEventListener('click', (e) => {
+  e.stopPropagation();
+  document.getElementById('bannerInput').click();
+});
+document.getElementById('bannerBox').addEventListener('click', () => {
+  document.getElementById('bannerInput').click();
+});
+document.getElementById('tokenBox').addEventListener('click', () => {
+  document.getElementById('tokenInput').click();
+});
+
 document.getElementById('bannerInput').addEventListener('change', (e) => handleImagemUpload(e, 'banner'));
 document.getElementById('tokenInput').addEventListener('change', (e) => handleImagemUpload(e, 'token'));
 
@@ -218,34 +173,16 @@ function bindSimpleFields(){
   });
 }
 
-// ---------- MECÂNICA DO KAUÊ ----------
-function renderMecanicaKaue(){
-  const btn = document.getElementById('btnMecanicaKaue');
-  const ativo = !!ficha.mecanicaKaue.ativo;
-  btn.textContent = 'Mecânica do Kauê: ' + (ativo ? 'ATIVA' : 'inativa');
-  btn.classList.toggle('kaue-on', ativo);
-  // só o mestre liga/desliga
-  btn.disabled = session.role !== 'master';
-  btn.title = session.role === 'master' ? 'Clique para ativar/desativar' : 'Somente o mestre pode ativar';
-}
-document.getElementById('btnMecanicaKaue').addEventListener('click', () => {
-  if(session.role !== 'master') return;
-  ficha.mecanicaKaue.ativo = !ficha.mecanicaKaue.ativo;
-  dirty = true;
-  renderMecanicaKaue();
-  renderAtributos();
-});
-
-// ---------- ATRIBUTOS ----------
+// ---------- atributos ----------
 const ATRIBUTOS_DEF = [
-  { key:'quantidadeEA', label:'Quantidade de Energia Amaldiçoada', desc:'Define o tamanho do seu reservatório de EA.' },
-  { key:'refinoEA', label:'Refino de Energia Amaldiçoada', desc:'Define a qualidade e a potência (Output) da sua EA.' },
-  { key:'combate', label:'Combate', desc:'Habilidade de luta corpo a corpo e com armas.' },
-  { key:'agilidade', label:'Agilidade', desc:'Reflexos, esquiva e coordenação motora.' },
-  { key:'intelecto', label:'Intelecto', desc:'Raciocínio tático, leitura de combate e conhecimento.' },
-  { key:'vigor', label:'Vigor', desc:'Resistência física; define Vida e Bloquear.' },
-  { key:'presenca', label:'Presença', desc:'Aura, intimidação e força de vontade.' },
-  { key:'velocidade', label:'Velocidade', desc:'Rapidez de movimento e de ação no turno.' }
+  { key:'quantidadeEA', label:'Quantidade de Energia Amaldiçoada' },
+  { key:'refinoEA', label:'Refino de Energia Amaldiçoada' },
+  { key:'combate', label:'Combate' },
+  { key:'agilidade', label:'Agilidade' },
+  { key:'intelecto', label:'Intelecto' },
+  { key:'vigor', label:'Vigor' },
+  { key:'presenca', label:'Presença' },
+  { key:'velocidade', label:'Velocidade' }
 ];
 
 function renderAtributos(){
@@ -260,8 +197,6 @@ function renderAtributos(){
     item.innerHTML = `
       <div class="attr-left">
         <span class="attr-name">${def.label}</span>
-        <span class="attr-desc">${def.desc}</span>
-        <span class="attr-grau-desc" id="gdesc_${def.key}"></span>
       </div>
       <div class="attr-controls">
         <select data-attr="${def.key}"></select>
@@ -280,7 +215,6 @@ function renderAtributos(){
       ficha.atributos[def.key] = select.value;
       dirty = true;
       atualizarModificadorEl(document.getElementById('mod_'+def.key), select.value);
-      document.getElementById('gdesc_'+def.key).textContent = DESC_GRAU[select.value] || '';
       renderStatusDerivado();
     });
     const plus = item.querySelector('[data-plus]');
@@ -296,98 +230,36 @@ function renderAtributos(){
     }
     grid.appendChild(item);
     atualizarModificadorEl(item.querySelector(`#mod_${def.key}`), atual);
-    item.querySelector(`#gdesc_${def.key}`).textContent = DESC_GRAU[atual] || '';
   });
-}
-function atualizarModificadorEl(el, grauLabel){
-  el.textContent = `1d20 + ${grauParaModificador(grauLabel)}`;
 }
 
 // ---------- status derivado ----------
 function renderStatusDerivado(){
-  const kk = ficha.blackFlash?.contador || 0;
-  const d = calcularStatusDerivado(ficha.atributos, kk);
-  ficha.status.vidaMax = d.vidaMax;
-  ficha.status.eaMax = d.eaMax;
-  ficha.status.bloquear = d.bloquear;
-  ficha.status.output = d.output;
+  const derivado = calcularStatusDerivado(ficha.atributos);
+  ficha.status.vidaMax = derivado.vidaMax;
+  ficha.status.eaMax = derivado.eaMax;
+  ficha.status.bloquear = derivado.bloquear;
+  ficha.status.output = derivado.output;
 
-  document.getElementById('disp_vidaMax').textContent = fmt(d.vidaMax);
-  document.getElementById('disp_eaMax').textContent = fmt(d.eaMax);
-  document.getElementById('disp_bloquear').textContent = d.bloquear;
-  document.getElementById('disp_output').textContent = fmt(d.output);
-  const kEl = document.getElementById('disp_kokusenMult');
-  if(kEl) kEl.textContent = kk > 0 ? `Kokusen ×${multKokusen(kk).toFixed(2)} em EA e Output` : '';
+  document.getElementById('disp_vidaMax').textContent = derivado.vidaMax;
+  document.getElementById('disp_eaMax').textContent = derivado.eaMax;
+  document.getElementById('disp_bloquear').textContent = derivado.bloquear;
+  document.getElementById('disp_output').textContent = derivado.output;
 
   document.getElementById('f_vidaAtual').value = ficha.status.vidaAtual || 0;
   document.getElementById('f_eaAtual').value = ficha.status.eaAtual || 0;
 
-  const pctVida = d.vidaMax > 0 ? Math.max(0, Math.min(100, (ficha.status.vidaAtual/d.vidaMax)*100)) : 0;
-  const pctEA = d.eaMax > 0 ? Math.max(0, Math.min(100, (ficha.status.eaAtual/d.eaMax)*100)) : 0;
+  const pctVida = derivado.vidaMax > 0 ? Math.max(0, Math.min(100, (ficha.status.vidaAtual/derivado.vidaMax)*100)) : 0;
+  const pctEA = derivado.eaMax > 0 ? Math.max(0, Math.min(100, (ficha.status.eaAtual/derivado.eaMax)*100)) : 0;
   document.getElementById('bar_vida').style.width = pctVida + '%';
   document.getElementById('bar_ea').style.width = pctEA + '%';
 }
 
-// ---------- GRAU DA TÉCNICA INATA ----------
-function montarSelectGrau(sel, valor){
-  sel.innerHTML = '';
-  TABELA_GRAU.forEach(g => {
-    const opt = document.createElement('option');
-    opt.value = g.label; opt.textContent = g.label;
-    if(g.label === valor) opt.selected = true;
-    sel.appendChild(opt);
-  });
-}
-function renderTecnicaGrau(){
-  const sel = document.getElementById('ti_grau');
-  montarSelectGrau(sel, ficha.tecnicaInata.grau || 'G4');
-  sel.onchange = () => { ficha.tecnicaInata.grau = sel.value; dirty = true; };
-}
-
-// ---------- STACKS DE MALDIÇÕES MORTAS ----------
-function renderStacks(){
-  const wrap = document.getElementById('stacksGrid');
-  wrap.innerHTML = '';
-  const alvoSel = document.getElementById('stackAlvo');
-  if(!alvoSel.options.length){
-    FAIXAS_STACK.forEach(f => {
-      const o = document.createElement('option'); o.value = f; o.textContent = f; alvoSel.appendChild(o);
-    });
-    alvoSel.value = 'G4';
-    alvoSel.addEventListener('change', renderStacks);
-  }
-  FAIXAS_STACK.forEach(f => {
-    const mortos = Number(ficha.stacksMalditos[f]) || 0;
-    const row = document.createElement('div');
-    row.className = 'stack-row';
-    row.innerHTML = `
-      <span class="stack-grau">${f}</span>
-      <span class="stack-mortos">${mortos} mortos</span>
-      <span class="stack-valor">${fmt(mortos * 0.25)} stack</span>
-      <button type="button" class="btn btn-ghost btn-sm" data-stack-add="${f}">+1 morto</button>
-      <button type="button" class="btn-remove" data-stack-sub="${f}" title="Remover 1">−</button>
-    `;
-    wrap.appendChild(row);
-  });
-  wrap.querySelectorAll('[data-stack-add]').forEach(b => b.addEventListener('click', () => {
-    const k = b.getAttribute('data-stack-add');
-    ficha.stacksMalditos[k] = (Number(ficha.stacksMalditos[k]) || 0) + 1;
-    dirty = true; renderStacks();
-  }));
-  wrap.querySelectorAll('[data-stack-sub]').forEach(b => b.addEventListener('click', () => {
-    const k = b.getAttribute('data-stack-sub');
-    ficha.stacksMalditos[k] = Math.max(0, (Number(ficha.stacksMalditos[k]) || 0) - 1);
-    dirty = true; renderStacks();
-  }));
-  const alvo = alvoSel.value;
-  document.getElementById('stackTotal').textContent =
-    `Total equivalente em ${alvo}: ${fmt(totalStackEm(ficha.stacksMalditos, alvo))} stacks`;
-}
+// ============================================================
+// BLOCOS DINÂMICOS
+// ============================================================
 
 // ---------- HABILIDADES ESPECIAIS ----------
-function grauOptionsHtml(valor){
-  return TABELA_GRAU.map(g => `<option value="${g.label}" ${g.label === valor ? 'selected' : ''}>${g.label}</option>`).join('');
-}
 function renderHabilidades(){
   const wrap = document.getElementById('habilidadesList');
   wrap.innerHTML = '';
@@ -400,7 +272,6 @@ function renderHabilidades(){
     item.innerHTML = `
       <div class="dyn-item-head">
         <input type="text" placeholder="Nome da habilidade" value="${escapeHtml(hab.nome)}" data-hab-field="nome" data-idx="${idx}">
-        <select class="grau-select" data-hab-field="grau" data-idx="${idx}">${grauOptionsHtml(hab.grau || 'G4')}</select>
         <button class="btn-remove" data-hab-remove="${idx}" type="button">✕</button>
       </div>
       <div class="field-block"><label>Funcionamento</label><textarea rows="2" data-hab-field="funcionamento" data-idx="${idx}">${escapeHtml(hab.funcionamento)}</textarea></div>
@@ -416,8 +287,7 @@ function renderHabilidades(){
     wrap.appendChild(item);
   });
   wrap.querySelectorAll('[data-hab-field]').forEach(el => {
-    const ev = el.tagName === 'SELECT' ? 'change' : 'input';
-    el.addEventListener(ev, () => {
+    el.addEventListener('input', () => {
       const idx = Number(el.getAttribute('data-idx'));
       ficha.habilidadesEspeciais[idx][el.getAttribute('data-hab-field')] = el.value;
       dirty = true;
@@ -426,13 +296,15 @@ function renderHabilidades(){
   wrap.querySelectorAll('[data-hab-remove]').forEach(btn => {
     btn.addEventListener('click', () => {
       ficha.habilidadesEspeciais.splice(Number(btn.getAttribute('data-hab-remove')),1);
-      dirty = true; renderHabilidades();
+      dirty = true;
+      renderHabilidades();
     });
   });
 }
 document.getElementById('btnAddHabilidade').addEventListener('click', () => {
-  ficha.habilidadesEspeciais.push({ nome:'', grau:'G4', funcionamento:'', condicoes:'', custo:'', efeitos:'', limitacoes:'' });
-  dirty = true; renderHabilidades();
+  ficha.habilidadesEspeciais.push({ nome:'', funcionamento:'', condicoes:'', custo:'', efeitos:'', limitacoes:'' });
+  dirty = true;
+  renderHabilidades();
 });
 
 // ---------- DOMÍNIO / TÉCNICAS AVANÇADAS ----------
@@ -469,16 +341,18 @@ function renderDominio(){
   wrap.querySelectorAll('[data-dom-remove]').forEach(btn => {
     btn.addEventListener('click', () => {
       ficha.tecnicasDominio.splice(Number(btn.getAttribute('data-dom-remove')),1);
-      dirty = true; renderDominio();
+      dirty = true;
+      renderDominio();
     });
   });
 }
 document.getElementById('btnAddDominio').addEventListener('click', () => {
   ficha.tecnicasDominio.push({ nome:'', tipo:'', descricao:'', custo:'', cooldown:'' });
-  dirty = true; renderDominio();
+  dirty = true;
+  renderDominio();
 });
 
-// ---------- BLACK FLASH (KOKUSEN) ----------
+// ---------- BLACK FLASH ----------
 function renderBlackFlash(){
   document.getElementById('bf_contador').value = ficha.blackFlash.contador || 0;
   const wrap = document.getElementById('bfList');
@@ -506,22 +380,23 @@ function renderBlackFlash(){
   wrap.querySelectorAll('[data-bf-remove]').forEach(btn => {
     btn.addEventListener('click', () => {
       ficha.blackFlash.historico.splice(Number(btn.getAttribute('data-bf-remove')),1);
-      ficha.blackFlash.contador = Math.max(0, (ficha.blackFlash.contador || 0) - 1);
-      dirty = true; renderBlackFlash(); renderStatusDerivado();
+      dirty = true;
+      renderBlackFlash();
     });
   });
 }
 document.getElementById('bf_contador').addEventListener('input', (e) => {
-  ficha.blackFlash.contador = Math.max(0, Number(e.target.value || 0));
-  dirty = true; renderStatusDerivado();
+  ficha.blackFlash.contador = Number(e.target.value || 0);
+  dirty = true;
 });
 document.getElementById('btnAddBF').addEventListener('click', () => {
   ficha.blackFlash.historico.push({ data:'', descricao:'' });
   ficha.blackFlash.contador = (ficha.blackFlash.contador || 0) + 1;
-  dirty = true; renderBlackFlash(); renderStatusDerivado();
+  dirty = true;
+  renderBlackFlash();
 });
 
-// ---------- INVENTÁRIO ----------
+// ---------- INVENTÁRIO (referencia catálogo global) ----------
 function montarSelectCatalogo(){
   const sel = document.getElementById('invSelectItem');
   sel.innerHTML = '<option value="">Selecione um item do catálogo...</option>';
@@ -532,6 +407,7 @@ function montarSelectCatalogo(){
     sel.appendChild(opt);
   });
 }
+
 function renderInventario(){
   montarSelectCatalogo();
   const wrap = document.getElementById('inventarioList');
@@ -557,14 +433,16 @@ function renderInventario(){
   });
   wrap.querySelectorAll('[data-inv-qty]').forEach(el => {
     el.addEventListener('input', () => {
-      ficha.inventario[Number(el.getAttribute('data-inv-qty'))].quantidade = Number(el.value || 1);
+      const idx = Number(el.getAttribute('data-inv-qty'));
+      ficha.inventario[idx].quantidade = Number(el.value || 1);
       dirty = true;
     });
   });
   wrap.querySelectorAll('[data-inv-remove]').forEach(btn => {
     btn.addEventListener('click', () => {
       ficha.inventario.splice(Number(btn.getAttribute('data-inv-remove')),1);
-      dirty = true; renderInventario();
+      dirty = true;
+      renderInventario();
     });
   });
 }
@@ -572,16 +450,20 @@ document.getElementById('btnAddInvItem').addEventListener('click', () => {
   const sel = document.getElementById('invSelectItem');
   if(!sel.value) return;
   const existente = ficha.inventario.find(e => e.itemId === sel.value);
-  if(existente) existente.quantidade = (existente.quantidade || 1) + 1;
-  else ficha.inventario.push({ itemId: sel.value, quantidade: 1 });
-  dirty = true; renderInventario();
+  if(existente){
+    existente.quantidade = (existente.quantidade || 1) + 1;
+  } else {
+    ficha.inventario.push({ itemId: sel.value, quantidade: 1 });
+  }
+  dirty = true;
+  renderInventario();
 });
 
 // ---------- TABELA DE GRAU (referência) ----------
 function renderTabelaGrau(){
   const table = document.getElementById('tabelaGrauTable');
-  let html = '<tr><th>Nível</th><th>Pontos</th><th>Modificador</th><th>EA base</th></tr>';
-  TABELA_GRAU.forEach(g => { html += `<tr><td>${g.label}</td><td>${g.pontos}</td><td>1d20 + ${g.pontos}</td><td>${fmt(eaBase(g.pontos))}</td></tr>`; });
+  let html = '<tr><th>Nível</th><th>Pontos</th><th>Modificador</th></tr>';
+  TABELA_GRAU.forEach(g => { html += `<tr><td>${g.label}</td><td>${g.pontos}</td><td>1d20 + ${g.pontos}</td></tr>`; });
   table.innerHTML = html;
 }
 renderTabelaGrau();
@@ -599,4 +481,7 @@ function setupCollapsible(toggleId, bodyId){
 setupCollapsible('toggleTabela', 'tabelaGrauWrap');
 setupCollapsible('toggleRegras', 'regrasWrap');
 
+// ============================================================
+// INIT
+// ============================================================
 carregar();
