@@ -165,8 +165,8 @@ const EMOCOES = [
     niveis: [
       { nome: 'Hesitante', texto: 'Você duvida de si. -1 no primeiro teste de ataque de cada turno, mas +1 de CD por estar na defensiva.' },
       { nome: 'Receoso', texto: 'Você mede cada passo. -1 em todos os testes de ataque e de Presença; +2 de CD.' },
-      { nome: 'Abalado', texto: 'Cada erro pesa. -2 em ataque e Presença, e cada teste abaixo de 10 aumenta a penalidade em -1 E +1 DE CD até o fim da cena (máx. -5). +2 de CD.' },
-      { nome: 'Desesperado', texto: 'A dúvida te trava. -3 em todos os testes e, antes de qualquer ação ofensiva, precisa passar em um teste de Presença (CD 10) ou ganha +5 para fugir. Em compensação, +3 de CD.' }
+      { nome: 'Abalado', texto: 'Cada erro pesa. -2 em ataque e Presença, e cada teste abaixo de 10 aumenta a penalidade em -1 até o fim da cena (máx. -5). +2 de CD.' },
+      { nome: 'Paralisado', texto: 'A dúvida te trava. -3 em todos os testes e, antes de qualquer ação ofensiva, precisa passar em um teste de Presença (CD 10) ou perde a ação. Em compensação, +3 de CD.' }
     ]
   },
   {
@@ -175,7 +175,7 @@ const EMOCOES = [
       { nome: 'Melancólico', texto: 'Um peso silencioso. -1 em testes de Presença; +1 em testes de Intelecto, pelo olhar mais atento.' },
       { nome: 'Abatido', texto: 'Falta ânimo. -1 em todos os testes e recuperações de vida e EA rendem 25% a menos.' },
       { nome: 'Desolado', texto: 'A dor domina. -2 em todos os testes; cada teste abaixo de 8 faz você perder 1d4 de EA. +2 de Bloquear pela resignação.' },
-      { nome: 'Apático', texto: 'Nada mais importa. -3 em todos os testes e perde 1d4 de EA no início de cada turno. A dor vira poder: você fica imune a desgaste de tecnica, afinal, nada mais importa.' }
+      { nome: 'Desespero', texto: 'Nada mais importa. -3 em todos os testes e perde 1d4 de EA no início de cada turno. A dor vira poder: +1d4 de dano nas técnicas amaldiçoadas.' }
     ]
   }
 ];
