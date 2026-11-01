@@ -12,7 +12,6 @@ const TABELA_GRAU = [
   { label: '-Calamidade', pontos: 25 }, { label: 'Calamidade', pontos: 26 }, { label: '+Calamidade', pontos: 27 },
   { label: '++Calamidade', pontos: 28 }, { label: '+++Calamidade', pontos: 29 }, { label: '++++Calamidade', pontos: 30 }
 ];
-const GRAUS_FAIXA = ['G4','G3','semi G2','G2','semi G1','G1','semi Especial','Especial','Calamidade','++ Calamidade'];
 
 function grauParaPontos(label) {
   const g = TABELA_GRAU.find(g => g.label === label);
