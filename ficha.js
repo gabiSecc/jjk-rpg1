@@ -38,6 +38,7 @@ function setPath(obj, path, value){
   cur[keys[keys.length-1]] = value;
 }
 function fmt(n){ return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 2 }); }
+function sinal(n){ return (n > 0 ? '+' : '') + fmt(n); }
 
 window.addEventListener('beforeunload', (e) => { if(dirty){ e.preventDefault(); e.returnValue=''; } });
 
@@ -81,6 +82,22 @@ const DESC_GRAU = {
 // ============================================================
 // CARREGAR / SALVAR
 // ============================================================
+
+// Registros antigos de Black Flash (sem ganho guardado) ganham o ganho calculado
+// em sequência com os atributos atuais. O servidor refaz esse cálculo ao salvar.
+function completarGanhosBF(f){
+  const base = calcularBase(f.atributos);
+  const anteriores = [];
+  f.blackFlash.historico.forEach(h => {
+    if(typeof h.eaGanho !== 'number'){
+      const g = ganhoKokusen(base, anteriores);
+      h.eaGanho = g.eaGanho;
+      h.outGanho = g.outGanho;
+    }
+    anteriores.push(h);
+  });
+}
+
 function normalizarFicha(f){
   f.mecanicaKaue = f.mecanicaKaue || { ativo: false };
   f.tecnicaInata = f.tecnicaInata || {};
@@ -91,8 +108,25 @@ function normalizarFicha(f){
   f.habilidadesEspeciais.forEach(h => { if(!h.grau) h.grau = 'G4'; });
   f.inventario = f.inventario || [];
   f.tecnicasDominio = f.tecnicasDominio || [];
+
+  f.status = f.status || {};
+  if(f.status.emocaoAtual === undefined) f.status.emocaoAtual = '';
+  if(f.status.emocaoNivel === undefined) f.status.emocaoNivel = 0;
+
+  f.bonusTemp = Array.isArray(f.bonusTemp) ? f.bonusTemp : [];
+  f.bonusTemp.forEach(b => { if(!b.id) b.id = gerarId(); });
+
   f.blackFlash = f.blackFlash || { contador: 0, historico: [] };
   f.blackFlash.historico = f.blackFlash.historico || [];
+  // fichas antigas: contador sem histórico vira registros "migrados"
+  const contAntigo = Number(f.blackFlash.contador) || 0;
+  while(f.blackFlash.historico.length < contAntigo){
+    f.blackFlash.historico.push({ data: '', descricao: '(registro migrado)' });
+  }
+  f.blackFlash.historico.forEach(h => { if(!h.id) h.id = gerarId(); });
+  f.atributos = f.atributos || {};
+  completarGanhosBF(f);
+  f.blackFlash.contador = f.blackFlash.historico.length;
   return f;
 }
 
@@ -119,6 +153,9 @@ async function salvar(){
     renderStatusDerivado();
     renderAtributos();
     renderStacks();
+    renderBlackFlash();
+    renderBonusTemp();
+    renderEmocoes();
     setTimeout(()=> setSaveStatus(''), 2500);
   }catch(err){
     setSaveStatus('Erro ao salvar: ' + err.message, 'err');
@@ -135,6 +172,8 @@ function renderAll(){
   renderMecanicaKaue();
   renderAtributos();
   renderStatusDerivado();
+  renderBonusTemp();
+  renderEmocoes();
   renderTecnicaGrau();
   renderStacks();
   renderHabilidades();
@@ -241,9 +280,9 @@ const ATRIBUTOS_DEF = [
   { key:'quantidadeEA', label:'Quantidade de Energia Amaldiçoada', desc:'Define o tamanho do seu reservatório de EA.' },
   { key:'refinoEA', label:'Refino de Energia Amaldiçoada', desc:'Define a qualidade e a potência (Output) da sua EA.' },
   { key:'combate', label:'Combate', desc:'Habilidade de luta corpo a corpo e com armas.' },
-  { key:'agilidade', label:'Agilidade', desc:'Reflexos, esquiva e coordenação motora.' },
+  { key:'agilidade', label:'Agilidade', desc:'Reflexos, esquiva e coordenação motora; compõe a CD.' },
   { key:'intelecto', label:'Intelecto', desc:'Raciocínio tático, leitura de combate e conhecimento.' },
-  { key:'vigor', label:'Vigor', desc:'Resistência física; define Vida e Bloquear.' },
+  { key:'vigor', label:'Vigor', desc:'Resistência física; define Vida, Bloquear e compõe a CD.' },
   { key:'presenca', label:'Presença', desc:'Aura, intimidação e força de vontade.' },
   { key:'velocidade', label:'Velocidade', desc:'Rapidez de movimento e de ação no turno.' }
 ];
@@ -300,28 +339,149 @@ function atualizarModificadorEl(el, grauLabel){
 }
 
 // ---------- status derivado ----------
+function setBonusTag(key, bonus){
+  const el = document.getElementById('bonus_' + key);
+  if(!el) return;
+  if(!bonus){ el.textContent = ''; el.classList.remove('neg'); return; }
+  el.textContent = `(${sinal(bonus)})`;
+  el.classList.toggle('neg', bonus < 0);
+}
+function setInputSePermitido(id, valor){
+  const el = document.getElementById(id);
+  if(el && document.activeElement !== el) el.value = valor;
+}
+
 function renderStatusDerivado(){
-  const kk = ficha.blackFlash?.contador || 0;
-  const d = calcularStatusDerivado(ficha.atributos, kk);
+  const d = calcularStatusDerivado(ficha.atributos, ficha.blackFlash, ficha.bonusTemp);
+  const bt = somaBonusTemp(ficha.bonusTemp);
   ficha.status.vidaMax = d.vidaMax;
   ficha.status.eaMax = d.eaMax;
   ficha.status.bloquear = d.bloquear;
+  ficha.status.cd = d.cd;
   ficha.status.output = d.output;
 
   document.getElementById('disp_vidaMax').textContent = fmt(d.vidaMax);
   document.getElementById('disp_eaMax').textContent = fmt(d.eaMax);
-  document.getElementById('disp_bloquear').textContent = d.bloquear;
+  document.getElementById('disp_bloquear').textContent = fmt(d.bloquear);
+  document.getElementById('disp_cd').textContent = fmt(d.cd);
   document.getElementById('disp_output').textContent = fmt(d.output);
-  const kEl = document.getElementById('disp_kokusenMult');
-  if(kEl) kEl.textContent = kk > 0 ? `Kokusen ×${multKokusen(kk).toFixed(2)} em EA e Output` : '';
+  STATS_BONUS.forEach(s => setBonusTag(s.key, bt[s.key]));
 
-  document.getElementById('f_vidaAtual').value = ficha.status.vidaAtual || 0;
-  document.getElementById('f_eaAtual').value = ficha.status.eaAtual || 0;
+  const bf = somaBlackFlash(ficha.blackFlash.historico);
+  const n = ficha.blackFlash.historico.length;
+  const kEl = document.getElementById('disp_kokusenMult');
+  if(kEl) kEl.textContent = n > 0 ? `Kokusen (${n}): +${fmt(bf.ea)} de EA máxima e +${fmt(bf.out)} de Output (bônus fixos)` : '';
+
+  setInputSePermitido('f_vidaAtual', ficha.status.vidaAtual || 0);
+  setInputSePermitido('f_eaAtual', ficha.status.eaAtual || 0);
 
   const pctVida = d.vidaMax > 0 ? Math.max(0, Math.min(100, (ficha.status.vidaAtual/d.vidaMax)*100)) : 0;
   const pctEA = d.eaMax > 0 ? Math.max(0, Math.min(100, (ficha.status.eaAtual/d.eaMax)*100)) : 0;
   document.getElementById('bar_vida').style.width = pctVida + '%';
   document.getElementById('bar_ea').style.width = pctEA + '%';
+}
+
+// ---------- BÔNUS TEMPORÁRIOS ----------
+function renderBonusTemp(){
+  const sel = document.getElementById('bt_stat');
+  if(!sel.options.length){
+    STATS_BONUS.forEach(s => {
+      const o = document.createElement('option'); o.value = s.key; o.textContent = s.label; sel.appendChild(o);
+    });
+  }
+  const wrap = document.getElementById('bonusList');
+  wrap.innerHTML = '';
+  if(ficha.bonusTemp.length === 0){
+    wrap.innerHTML = '<div class="empty-state">Nenhum bônus temporário ativo.</div>';
+    return;
+  }
+  ficha.bonusTemp.forEach((b, idx) => {
+    const def = STATS_BONUS.find(s => s.key === b.stat);
+    const neg = Number(b.valor) < 0;
+    const row = document.createElement('div');
+    row.className = 'bonus-item';
+    row.innerHTML = `
+      <span class="bonus-valor${neg ? ' neg' : ''}">${sinal(Number(b.valor) || 0)}</span>
+      <span class="bonus-stat">${escapeHtml(def ? def.label : b.stat)}</span>
+      <span class="bonus-nota">${escapeHtml(b.nota || '')}</span>
+      <button type="button" class="btn btn-ghost btn-sm" data-bonus-remove="${idx}">Remover</button>
+    `;
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll('[data-bonus-remove]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      ficha.bonusTemp.splice(Number(btn.getAttribute('data-bonus-remove')), 1);
+      // o status volta ao normal: vida/EA atuais não podem passar do novo máximo
+      const d = calcularStatusDerivado(ficha.atributos, ficha.blackFlash, ficha.bonusTemp);
+      if((ficha.status.vidaAtual || 0) > d.vidaMax) ficha.status.vidaAtual = d.vidaMax;
+      if((ficha.status.eaAtual || 0) > d.eaMax) ficha.status.eaAtual = d.eaMax;
+      dirty = true;
+      renderBonusTemp();
+      renderStatusDerivado();
+    });
+  });
+}
+document.getElementById('btnAddBonus').addEventListener('click', () => {
+  const stat = document.getElementById('bt_stat').value;
+  const valor = Number(document.getElementById('bt_valor').value);
+  const nota = document.getElementById('bt_nota').value.trim();
+  if(!valor){ toast('Informe um valor diferente de zero.', true); return; }
+  ficha.bonusTemp.push({ id: gerarId(), stat, valor, nota });
+  document.getElementById('bt_valor').value = '';
+  document.getElementById('bt_nota').value = '';
+  dirty = true;
+  renderBonusTemp();
+  renderStatusDerivado();
+});
+
+// ---------- EMOÇÕES ----------
+function renderEmocoes(){
+  const lista = document.getElementById('emoLista');
+  const niveis = document.getElementById('emoNiveis');
+  const titulo = document.getElementById('emoNiveisTitulo');
+  const atual = ficha.status.emocaoAtual || '';
+  const nvAtual = Number(ficha.status.emocaoNivel) || 0;
+
+  lista.innerHTML = '';
+  const itens = [{ key: '', label: 'Nenhuma' }].concat(EMOCOES.map(e => ({ key: e.key, label: e.key })));
+  itens.forEach(it => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'emo-item' + (it.key === atual ? ' active' : '');
+    btn.textContent = it.label;
+    btn.addEventListener('click', () => {
+      if(it.key === atual) return;
+      ficha.status.emocaoAtual = it.key;
+      ficha.status.emocaoNivel = it.key ? 1 : 0;
+      dirty = true;
+      renderEmocoes();
+    });
+    lista.appendChild(btn);
+  });
+
+  niveis.innerHTML = '';
+  const emo = EMOCOES.find(e => e.key === atual);
+  if(!emo){
+    titulo.textContent = 'Níveis';
+    niveis.innerHTML = '<div class="empty-state" style="padding:12px;">Selecione uma emoção para ver os níveis.</div>';
+    return;
+  }
+  titulo.textContent = 'Níveis de ' + emo.key;
+  emo.niveis.forEach((nv, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'emo-item' + (nvAtual === i + 1 ? ' active' : '');
+    btn.innerHTML = `
+      <div class="nv-head"><span class="nv-tag">NV${i + 1}</span><span class="nv-nome">${escapeHtml(nv.nome)}</span></div>
+      <div class="nv-texto">${escapeHtml(nv.texto)}</div>
+    `;
+    btn.addEventListener('click', () => {
+      ficha.status.emocaoNivel = i + 1;
+      dirty = true;
+      renderEmocoes();
+    });
+    niveis.appendChild(btn);
+  });
 }
 
 // ---------- GRAU DA TÉCNICA INATA ----------
@@ -475,19 +635,24 @@ document.getElementById('btnAddDominio').addEventListener('click', () => {
 });
 
 // ---------- BLACK FLASH (KOKUSEN) ----------
+// Cada registro guarda o ganho de EA/Output do momento em que foi criado.
+// Subir de grau depois NÃO muda o que já foi registrado.
 function renderBlackFlash(){
-  document.getElementById('bf_contador').value = ficha.blackFlash.contador || 0;
+  const hist = ficha.blackFlash.historico;
+  ficha.blackFlash.contador = hist.length;
+  document.getElementById('bf_contador').value = hist.length;
   const wrap = document.getElementById('bfList');
   wrap.innerHTML = '';
-  if(ficha.blackFlash.historico.length === 0){
+  if(hist.length === 0){
     wrap.innerHTML = '<div class="empty-state">Nenhum Black Flash registrado ainda.</div>';
   }
-  ficha.blackFlash.historico.forEach((h, idx) => {
+  hist.forEach((h, idx) => {
     const row = document.createElement('div');
     row.className = 'bf-entry';
     row.innerHTML = `
       <input type="text" class="bf-date" placeholder="data/sessão" value="${escapeHtml(h.data)}" data-bf-field="data" data-idx="${idx}">
       <input type="text" placeholder="descrição do momento" value="${escapeHtml(h.descricao)}" data-bf-field="descricao" data-idx="${idx}">
+      <span class="bf-ganho">+${fmt(h.eaGanho || 0)} EA · +${fmt(h.outGanho || 0)} Out</span>
       <button class="btn-remove" data-bf-remove="${idx}" type="button">✕</button>
     `;
     wrap.appendChild(row);
@@ -502,18 +667,14 @@ function renderBlackFlash(){
   wrap.querySelectorAll('[data-bf-remove]').forEach(btn => {
     btn.addEventListener('click', () => {
       ficha.blackFlash.historico.splice(Number(btn.getAttribute('data-bf-remove')),1);
-      ficha.blackFlash.contador = Math.max(0, (ficha.blackFlash.contador || 0) - 1);
       dirty = true; renderBlackFlash(); renderStatusDerivado();
     });
   });
 }
-document.getElementById('bf_contador').addEventListener('input', (e) => {
-  ficha.blackFlash.contador = Math.max(0, Number(e.target.value || 0));
-  dirty = true; renderStatusDerivado();
-});
 document.getElementById('btnAddBF').addEventListener('click', () => {
-  ficha.blackFlash.historico.push({ data:'', descricao:'' });
-  ficha.blackFlash.contador = (ficha.blackFlash.contador || 0) + 1;
+  const base = calcularBase(ficha.atributos);
+  const g = ganhoKokusen(base, ficha.blackFlash.historico);
+  ficha.blackFlash.historico.push({ id: gerarId(), data: '', descricao: '', eaGanho: g.eaGanho, outGanho: g.outGanho });
   dirty = true; renderBlackFlash(); renderStatusDerivado();
 });
 

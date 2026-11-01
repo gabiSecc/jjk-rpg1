@@ -105,19 +105,114 @@ function eaBase(pts) {
   if (faixa === 0) return 50 + pos * 25;
   return 100 * Math.pow(2, faixa) + pos * 50 * Math.pow(2, faixa - 1);
 }
-function multKokusen(n) { return Math.pow(1.2, Math.max(0, Number(n) || 0)); }
 
-function calcularStatusDerivado(atributos, kokusen) {
-  const vigorPts = grauParaPontos(atributos.vigor);
-  const quantEAPts = grauParaPontos(atributos.quantidadeEA);
-  const refinoPts = grauParaPontos(atributos.refinoEA);
-  const m = multKokusen(kokusen);
+const KOKUSEN_PERC = 0.2;
+const STATS_BONUS = ['vidaMax', 'eaMax', 'bloquear', 'cd', 'output'];
+const EMOCOES_NOMES = ['Felicidade', 'Concentração', 'Coragem', 'Raiva', 'Insegurança', 'Tristeza'];
+
+function gerarId() { return crypto.randomBytes(6).toString('hex'); }
+
+function calcularBase(atributos) {
+  const a = atributos || {};
+  const vigor = grauParaPontos(a.vigor);
+  const agi = grauParaPontos(a.agilidade);
   return {
-    vidaMax: vigorPts * 10,
-    eaMax: Math.round(eaBase(quantEAPts) * m),
-    bloquear: 5 + vigorPts,
-    output: Math.round(refinoPts * 20 * m)
+    vidaMax: vigor * 10,
+    eaBase: eaBase(grauParaPontos(a.quantidadeEA)),
+    outputBase: grauParaPontos(a.refinoEA) * 20,
+    bloquear: 5 + vigor,
+    cd: agi + vigor
   };
+}
+function somaBlackFlash(historico) {
+  let ea = 0, out = 0;
+  (historico || []).forEach(h => { ea += Number(h.eaGanho) || 0; out += Number(h.outGanho) || 0; });
+  return { ea, out };
+}
+function somaBonusTemp(lista) {
+  const t = { vidaMax: 0, eaMax: 0, bloquear: 0, cd: 0, output: 0 };
+  (lista || []).forEach(b => {
+    if (b && Object.prototype.hasOwnProperty.call(t, b.stat)) t[b.stat] += Number(b.valor) || 0;
+  });
+  return t;
+}
+function ganhoKokusen(base, historicoAnterior) {
+  const s = somaBlackFlash(historicoAnterior);
+  return {
+    eaGanho: Math.round((base.eaBase + s.ea) * KOKUSEN_PERC),
+    outGanho: Math.round((base.outputBase + s.out) * KOKUSEN_PERC)
+  };
+}
+
+function calcularStatusDerivado(atributos, blackFlash, bonusTemp) {
+  const base = calcularBase(atributos);
+  const bf = somaBlackFlash(blackFlash && blackFlash.historico);
+  const bt = somaBonusTemp(bonusTemp);
+  return {
+    vidaMax: base.vidaMax + bt.vidaMax,
+    eaMax: base.eaBase + bf.ea + bt.eaMax,
+    bloquear: base.bloquear + bt.bloquear,
+    cd: base.cd + bt.cd,
+    output: base.outputBase + bf.out + bt.output
+  };
+}
+
+// Black Flash: cada registro guarda o ganho de EA/Output do MOMENTO em que foi criado.
+// Registros que já existiam no banco mantêm o ganho antigo (o cliente não consegue alterá-lo);
+// registros novos (id desconhecido) têm o ganho calculado aqui, com os atributos atuais.
+function processarBlackFlash(nova, atual) {
+  const bf = nova.blackFlash || {};
+  const hist = Array.isArray(bf.historico) ? bf.historico : [];
+  const anteriores = new Map(
+    ((atual && atual.blackFlash && atual.blackFlash.historico) || [])
+      .filter(h => h && h.id && typeof h.eaGanho === 'number')
+      .map(h => [h.id, h])
+  );
+  const base = calcularBase(nova.atributos);
+  const resultado = [];
+  hist.slice(0, 500).forEach(h => {
+    const id = String((h && h.id) || gerarId());
+    const antigo = anteriores.get(id);
+    let eaGanho, outGanho;
+    if (antigo) {
+      eaGanho = antigo.eaGanho;
+      outGanho = Number(antigo.outGanho) || 0;
+    } else {
+      const g = ganhoKokusen(base, resultado);
+      eaGanho = g.eaGanho;
+      outGanho = g.outGanho;
+    }
+    resultado.push({
+      id,
+      data: String((h && h.data) || '').slice(0, 80),
+      descricao: String((h && h.descricao) || '').slice(0, 500),
+      eaGanho,
+      outGanho
+    });
+  });
+  nova.blackFlash = { contador: resultado.length, historico: resultado };
+}
+
+function sanitizarBonusTemp(lista) {
+  return (Array.isArray(lista) ? lista : [])
+    .filter(b => b && STATS_BONUS.includes(b.stat))
+    .slice(0, 50)
+    .map(b => ({
+      id: String(b.id || gerarId()),
+      stat: b.stat,
+      valor: Math.max(-1000000, Math.min(1000000, Number(b.valor) || 0)),
+      nota: String(b.nota || '').slice(0, 80)
+    }));
+}
+
+function sanitizarEmocao(status) {
+  if (!EMOCOES_NOMES.includes(status.emocaoAtual)) {
+    status.emocaoAtual = '';
+    status.emocaoNivel = 0;
+    return;
+  }
+  const n = Math.round(Number(status.emocaoNivel) || 1);
+  status.emocaoNivel = Math.max(1, Math.min(4, n));
 }
 
 function fichaVazia(nome) {
@@ -125,7 +220,8 @@ function fichaVazia(nome) {
     basico: { nome: nome || '', tecnica: '', cla: '', classe: '', nacionalidade: '', idade: '', altura: '', peso: '' },
     imagens: { bannerUrl: '', tokenUrl: '' },
     descricao: '',
-    status: { emocaoAtual: '', buffDebuffEmocao: '', vidaAtual: 0, vidaMax: 0, bloquear: 0, eaAtual: 0, eaMax: 0, output: 0 },
+    status: { emocaoAtual: '', emocaoNivel: 0, vidaAtual: 0, vidaMax: 0, bloquear: 0, cd: 0, eaAtual: 0, eaMax: 0, output: 0 },
+    bonusTemp: [],
     atributos: { quantidadeEA: '-G4', refinoEA: '-G4', combate: '-G4', agilidade: '-G4', intelecto: '-G4', vigor: '-G4', presenca: '-G4', velocidade: '-G4' },
     mecanicaKaue: { ativo: false },
     tecnicaInata: { nome: '', grau: 'G4', descricao: '', funcionamento: '', condicoes: '', limitacoes: '', custos: '', efeitosAdicionais: '' },
@@ -146,5 +242,7 @@ function fichaVazia(nome) {
 module.exports = {
   USERS, login, verify, requireSession,
   getAdmin, uploadImagem,
-  TABELA_GRAU, grauParaPontos, eaBase, multKokusen, calcularStatusDerivado, fichaVazia
+  TABELA_GRAU, grauParaPontos, eaBase, calcularBase, ganhoKokusen,
+  calcularStatusDerivado, processarBlackFlash, sanitizarBonusTemp, sanitizarEmocao,
+  fichaVazia
 };

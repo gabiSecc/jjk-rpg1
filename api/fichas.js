@@ -1,5 +1,8 @@
 // api/fichas.js
-const { getAdmin, requireSession, calcularStatusDerivado, fichaVazia } = require('./_shared');
+const {
+  getAdmin, requireSession, calcularStatusDerivado, fichaVazia,
+  processarBlackFlash, sanitizarBonusTemp, sanitizarEmocao
+} = require('./_shared');
 
 module.exports = async (req, res) => {
   const session = requireSession(req);
@@ -70,7 +73,13 @@ module.exports = async (req, res) => {
       }
       nova.mecanicaKaue = nova.mecanicaKaue || { ativo: false };
 
-      const derivado = calcularStatusDerivado(nova.atributos || {}, nova.blackFlash?.contador || 0);
+      // Normalizações com regras no servidor
+      nova.status = nova.status || {};
+      sanitizarEmocao(nova.status);
+      nova.bonusTemp = sanitizarBonusTemp(nova.bonusTemp);
+      processarBlackFlash(nova, atual);
+
+      const derivado = calcularStatusDerivado(nova.atributos || {}, nova.blackFlash, nova.bonusTemp);
       nova.status = { ...nova.status, ...derivado };
       nova._meta = { ...atual._meta, atualizadoEm: Date.now() };
 
