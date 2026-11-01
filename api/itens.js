@@ -1,6 +1,12 @@
 // api/itens.js
 const { getAdmin, requireSession } = require('./_shared');
 
+// Aceita só URL https sem caracteres que quebrem o CSS/HTML; senão vira ''
+function urlSegura(u) {
+  const s = String(u || '');
+  return /^https:\/\/[^\s'"()<>\\]+$/.test(s) ? s : '';
+}
+
 module.exports = async (req, res) => {
   const session = requireSession(req);
   if (!session) return res.status(401).json({ error: 'Sessão inválida ou expirada' });
@@ -20,14 +26,14 @@ module.exports = async (req, res) => {
 
     if (req.method === 'POST') {
       const { nome, descricao, dano, tipo, imagemUrl } = req.body || {};
-      if (!nome || !nome.trim()) return res.status(400).json({ error: 'Nome do item é obrigatório' });
+      if (!nome || !String(nome).trim()) return res.status(400).json({ error: 'Nome do item é obrigatório' });
 
       const novo = {
-        nome: nome.trim(),
-        descricao: descricao || '',
-        dano: dano || '',
-        tipo: tipo || '',
-        imagemUrl: imagemUrl || '',
+        nome: String(nome).trim().slice(0, 100),
+        descricao: String(descricao || '').slice(0, 2000),
+        dano: String(dano || '').slice(0, 100),
+        tipo: String(tipo || '').slice(0, 100),
+        imagemUrl: urlSegura(imagemUrl),
         criadoPor: session.nome,
         criadoPorUserKey: session.userKey,
         criadoEm: Date.now()

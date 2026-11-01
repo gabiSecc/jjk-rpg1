@@ -34,7 +34,10 @@ function getPath(obj, path){ return path.split('.').reduce((o,k)=> (o ? o[k] : u
 function setPath(obj, path, value){
   const keys = path.split('.');
   let cur = obj;
-  for(let i=0;i<keys.length-1;i++) cur = cur[keys[i]];
+  for(let i=0;i<keys.length-1;i++){
+    if(!cur[keys[i]] || typeof cur[keys[i]] !== 'object') cur[keys[i]] = {};
+    cur = cur[keys[i]];
+  }
   cur[keys[keys.length-1]] = value;
 }
 function fmt(n){ return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 2 }); }
@@ -43,45 +46,19 @@ function sinal(n){ return (n > 0 ? '+' : '') + fmt(n); }
 window.addEventListener('beforeunload', (e) => { if(dirty){ e.preventDefault(); e.returnValue=''; } });
 
 // ============================================================
-// DESCRIÇÕES DOS GRAUS (tom Jujutsu)
-// ============================================================
-const DESC_GRAU = {
-  'RESTRITO': 'Sem energia amaldiçoada utilizável, ou abaixo do nível humano. Não enxerga maldições.',
-  '-G4': 'Abaixo de um feiticeiro comum; mais próximo de um humano comum com um fio de energia.',
-  'G4': 'Nível de um feiticeiro comum. Cumpre missões básicas contra maldições fracas.',
-  '+G4': 'Acima do feiticeiro comum; à beira de ser promovido a G3.',
-  '-G3': 'Feiticeiro sólido em missões de rotina. Ainda sofre contra maldições organizadas.',
-  'G3': 'Profissional confiável, capaz de exorcizar maldições de grau 3 sozinho.',
-  '+G3': 'Veterano de campo, ameaça real para maldições de grau 3 e alguns grau 2.',
-  '-semi G2': 'Ponte entre feiticeiros comuns e de nível superior; já chama atenção da Jujutsu.',
-  'semi G2': 'Combatente tático, consegue sustentar lutas longas contra maldições G2.',
-  '+semi G2': 'Quase G2 pleno; sua técnica já começa a definir o resultado da luta.',
-  '-G2': 'Feiticeiro experiente, já lidera equipes em missões de risco.',
-  'G2': 'Pilar das operações da Jujutsu; enfrenta maldições de grau 2 com segurança.',
-  '+G2': 'Topo do G2. Um passo de ser reconhecido como elite.',
-  '-semi G1': 'Talento fora da curva. Superiores começam a considerá-lo para grau 1.',
-  'semi G1': 'Reconhecido como elite emergente, capaz de derrotar G1 em condições favoráveis.',
-  '+semi G1': 'Praticamente G1; só falta o título e a chancela oficial.',
-  '-G1': 'Feiticeiro de elite, um dos poucos capazes de enfrentar maldições de grau 1.',
-  'G1': 'Elite da Jujutsu. Uma missão G1 sem ele custa vidas.',
-  '+G1': 'Topo dos G1. Sua presença muda o rumo de qualquer confronto.',
-  '-semi Especial': 'Aproxima-se do limiar Especial; poucos no mundo chegam aqui.',
-  'semi Especial': 'Poder que rivaliza com maldições especiais. Convocado para crises nacionais.',
-  '+semi Especial': 'A um passo da categoria dos monstros; um exército em uma pessoa.',
-  '-Especial': 'Grau Especial iniciante. Uma anomalia entre os feiticeiros.',
-  'Especial': 'Um dos feiticeiros mais fortes do mundo. Ameaça e salvação ao mesmo tempo.',
-  '+Especial': 'Topo do Especial; poucos mortais chegam perto.',
-  '-Calamidade': 'Poder capaz de derrubar cidades. Não é mais tratado como humano comum.',
-  'Calamidade': 'Um desastre ambulante. Sua existência altera o equilíbrio do mundo.',
-  '+Calamidade': 'Calamidade plena, com controle absoluto sobre o próprio campo de batalha.',
-  '++Calamidade': 'Além do que a Jujutsu sabe medir. Lendas viram sussurros perto dele.',
-  '+++Calamidade': 'Perto do divino; só maldições ancestrais e mestres de era existem nesse nível.',
-  '++++Calamidade': 'O ápice absoluto. Mais que feiticeiro: um fenômeno.'
-};
-
-// ============================================================
 // CARREGAR / SALVAR
 // ============================================================
+
+// Graus guardados com nome antigo/errado (ex: "++ Calamidade") são convertidos para o nome atual.
+// Vazio ou desconhecido vira -G4 (é o que a tela já mostrava).
+function normalizarGrau(label){
+  if(TABELA_GRAU.some(g => g.label === label)) return label;
+  const s = String(label || '').trim();
+  if(!s) return '-G4';
+  const limpo = s.replace(/^(\++)\s+/, '$1').replace(/\s+/g, ' ');
+  const achado = TABELA_GRAU.find(g => g.label.toLowerCase() === limpo.toLowerCase());
+  return achado ? achado.label : '-G4';
+}
 
 // Registros antigos de Black Flash (sem ganho guardado) ganham o ganho calculado
 // em sequência com os atributos atuais. O servidor refaz esse cálculo ao salvar.
@@ -98,33 +75,65 @@ function completarGanhosBF(f){
   });
 }
 
+// Deixa QUALQUER ficha (antiga ou nova) com todos os campos que a tela usa.
+// Campos que já existem nunca são sobrescritos.
 function normalizarFicha(f){
+  f = f || {};
+
+  // blocos de texto (data-path): precisam existir como objeto
+  f.basico = f.basico || {};
+  f.imagens = f.imagens || {};
+  if(f.imagens.bannerUrl === undefined) f.imagens.bannerUrl = '';
+  if(f.imagens.tokenUrl === undefined) f.imagens.tokenUrl = '';
+  f.personalidade = f.personalidade || {};
+  f.relacionamentos = f.relacionamentos || {};
+  f.infoDesconhecidas = f.infoDesconhecidas || {};
+  if(f.descricao === undefined) f.descricao = '';
+  if(f.historiaLore === undefined) f.historiaLore = '';
+  if(f.observacoes === undefined) f.observacoes = '';
+
   f.mecanicaKaue = f.mecanicaKaue || { ativo: false };
+
   f.tecnicaInata = f.tecnicaInata || {};
-  if(!f.tecnicaInata.grau) f.tecnicaInata.grau = 'G4';
+  f.tecnicaInata.grau = normalizarGrau(f.tecnicaInata.grau || 'G4');
+
   f.stacksMalditos = f.stacksMalditos || {};
   FAIXAS_STACK.forEach(k => { if(f.stacksMalditos[k] === undefined) f.stacksMalditos[k] = 0; });
-  f.habilidadesEspeciais = f.habilidadesEspeciais || [];
-  f.habilidadesEspeciais.forEach(h => { if(!h.grau) h.grau = 'G4'; });
-  f.inventario = f.inventario || [];
-  f.tecnicasDominio = f.tecnicasDominio || [];
+
+  f.habilidadesEspeciais = Array.isArray(f.habilidadesEspeciais) ? f.habilidadesEspeciais : [];
+  f.habilidadesEspeciais.forEach(h => { h.grau = normalizarGrau(h.grau || 'G4'); });
+  f.inventario = Array.isArray(f.inventario) ? f.inventario : [];
+  f.tecnicasDominio = Array.isArray(f.tecnicasDominio) ? f.tecnicasDominio : [];
 
   f.status = f.status || {};
   if(f.status.emocaoAtual === undefined) f.status.emocaoAtual = '';
   if(f.status.emocaoNivel === undefined) f.status.emocaoNivel = 0;
+  if(f.status.vidaAtual === undefined) f.status.vidaAtual = 0;
+  if(f.status.eaAtual === undefined) f.status.eaAtual = 0;
+  // emoção antiga em texto livre: guarda em Observações antes de o servidor limpar
+  const emoAntiga = String(f.status.emocaoAtual || '').trim();
+  if(emoAntiga && !EMOCOES.some(e => e.key === emoAntiga)){
+    f.observacoes = (f.observacoes ? f.observacoes + '\n' : '') + '[Emoção anterior: ' + emoAntiga + ']';
+    f.status.emocaoAtual = '';
+    f.status.emocaoNivel = 0;
+  }
 
   f.bonusTemp = Array.isArray(f.bonusTemp) ? f.bonusTemp : [];
   f.bonusTemp.forEach(b => { if(!b.id) b.id = gerarId(); });
 
   f.blackFlash = f.blackFlash || { contador: 0, historico: [] };
-  f.blackFlash.historico = f.blackFlash.historico || [];
+  f.blackFlash.historico = Array.isArray(f.blackFlash.historico) ? f.blackFlash.historico : [];
   // fichas antigas: contador sem histórico vira registros "migrados"
   const contAntigo = Number(f.blackFlash.contador) || 0;
   while(f.blackFlash.historico.length < contAntigo){
     f.blackFlash.historico.push({ data: '', descricao: '(registro migrado)' });
   }
   f.blackFlash.historico.forEach(h => { if(!h.id) h.id = gerarId(); });
+
+  // atributos: todos presentes e com nome de grau válido
   f.atributos = f.atributos || {};
+  ATRIBUTOS_DEF.forEach(d => { f.atributos[d.key] = normalizarGrau(f.atributos[d.key]); });
+
   completarGanhosBF(f);
   f.blackFlash.contador = f.blackFlash.historico.length;
   return f;

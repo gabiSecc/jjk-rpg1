@@ -7,7 +7,7 @@ const Api = (function () {
   }
   function getSession() {
     const raw = localStorage.getItem('rpgjjk_session');
-    return raw ? JSON.parse(raw) : null;
+    try { return raw ? JSON.parse(raw) : null; } catch { return null; }
   }
   function setSession(token, session) {
     localStorage.setItem('rpgjjk_token', token);
@@ -26,7 +26,8 @@ const Api = (function () {
       opts.headers || {}
     );
     const res = await fetch(path, { ...opts, headers });
-    if (res.status === 401) {
+    // 401 no login = senha errada (não desloga/redireciona)
+    if (res.status === 401 && path !== '/api/login') {
       clearSession();
       window.location.href = '/login.html';
       throw new Error('Sessão expirada');
@@ -53,15 +54,40 @@ const Api = (function () {
   };
 })();
 
-function fileToBase64(file) {
+function lerComoDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result; // data:image/png;base64,AAAA
-      const base64 = result.split(',')[1];
-      resolve({ base64, mimeType: file.type });
-    };
+    reader.onload = () => resolve(reader.result);
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+// Lê a imagem e, se for grande (> 1,5MB), reduz para no máx. 1600px em JPEG.
+// Assim nunca estoura o limite de ~4,5MB de corpo da Vercel.
+// GIF/SVG não são reduzidos (para não perder animação/vetor).
+async function fileToBase64(file) {
+  const tipoSemReduzir = file.type === 'image/gif' || file.type === 'image/svg+xml';
+  if (file.size <= 1.5 * 1024 * 1024 || tipoSemReduzir) {
+    const result = await lerComoDataUrl(file);
+    return { base64: result.split(',')[1], mimeType: file.type };
+  }
+  const dataUrl = await lerComoDataUrl(file);
+  const img = await new Promise((resolve, reject) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => reject(new Error('Não foi possível ler a imagem'));
+    i.src = dataUrl;
+  });
+  const MAX = 1600;
+  const escala = Math.min(1, MAX / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.width * escala);
+  canvas.height = Math.round(img.height * escala);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  const out = canvas.toDataURL('image/jpeg', 0.85);
+  return { base64: out.split(',')[1], mimeType: 'image/jpeg' };
 }

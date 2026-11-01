@@ -4,6 +4,12 @@ const {
   processarBlackFlash, sanitizarBonusTemp, sanitizarEmocao
 } = require('./_shared');
 
+// Aceita só URL https sem caracteres que quebrem o CSS/HTML; senão vira ''
+function urlSegura(u) {
+  const s = String(u || '');
+  return /^https:\/\/[^\s'"()<>\\]+$/.test(s) ? s : '';
+}
+
 module.exports = async (req, res) => {
   const session = requireSession(req);
   if (!session) return res.status(401).json({ error: 'Sessão inválida ou expirada. Faça login novamente.' });
@@ -39,6 +45,8 @@ module.exports = async (req, res) => {
       if (session.role !== 'master' && f._meta?.donoUserKey !== session.userKey) {
         return res.status(403).json({ error: 'Você não tem acesso a esta ficha' });
       }
+      // jogador nunca recebe os segredos do mestre
+      if (session.role !== 'master') delete f.infoDesconhecidas;
       return res.status(200).json({ id: doc.id, ficha: f });
     }
 
@@ -64,12 +72,25 @@ module.exports = async (req, res) => {
       }
 
       const nova = req.body?.ficha;
-      if (!nova) return res.status(400).json({ error: 'Corpo da requisição sem ficha' });
+      if (!nova || typeof nova !== 'object') return res.status(400).json({ error: 'Corpo da requisição sem ficha' });
+
+      const vazia = fichaVazia('');
+
+      // Fichas antigas: garante que os blocos existam (campos novos entram com valor padrão)
+      ['basico', 'imagens', 'personalidade', 'relacionamentos', 'tecnicaInata'].forEach(k => {
+        nova[k] = { ...vazia[k], ...(nova[k] && typeof nova[k] === 'object' ? nova[k] : {}) };
+      });
+      nova.atributos = { ...vazia.atributos, ...(nova.atributos || {}) };
+      nova.stacksMalditos = { ...vazia.stacksMalditos, ...(nova.stacksMalditos || {}) };
+      nova.imagens.bannerUrl = urlSegura(nova.imagens.bannerUrl);
+      nova.imagens.tokenUrl = urlSegura(nova.imagens.tokenUrl);
 
       // Jogador não mexe em segredos nem na flag da Mecânica do Kauê
       if (session.role !== 'master') {
-        nova.infoDesconhecidas = atual.infoDesconhecidas;
+        nova.infoDesconhecidas = atual.infoDesconhecidas || vazia.infoDesconhecidas;
         nova.mecanicaKaue = atual.mecanicaKaue || { ativo: false };
+      } else {
+        nova.infoDesconhecidas = { ...vazia.infoDesconhecidas, ...(nova.infoDesconhecidas || {}) };
       }
       nova.mecanicaKaue = nova.mecanicaKaue || { ativo: false };
 
@@ -79,12 +100,16 @@ module.exports = async (req, res) => {
       nova.bonusTemp = sanitizarBonusTemp(nova.bonusTemp);
       processarBlackFlash(nova, atual);
 
-      const derivado = calcularStatusDerivado(nova.atributos || {}, nova.blackFlash, nova.bonusTemp);
+      const derivado = calcularStatusDerivado(nova.atributos, nova.blackFlash, nova.bonusTemp);
       nova.status = { ...nova.status, ...derivado };
-      nova._meta = { ...atual._meta, atualizadoEm: Date.now() };
+      nova._meta = { ...(atual._meta || {}), atualizadoEm: Date.now() };
 
-      await col.doc(id).set(nova);
-      return res.status(200).json({ id, ficha: nova });
+      // remove qualquer "undefined" (o Firestore recusa) antes de gravar
+      const limpa = JSON.parse(JSON.stringify(nova));
+      await col.doc(id).set(limpa);
+
+      if (session.role !== 'master') delete limpa.infoDesconhecidas;
+      return res.status(200).json({ id, ficha: limpa });
     }
 
     if (req.method === 'DELETE') {

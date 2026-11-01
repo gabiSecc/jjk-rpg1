@@ -59,6 +59,14 @@
 <script>
   if (Api.getSession()) window.location.href = '/hub.html';
 
+  // base64url + UTF-8 (nomes com acento como "Kauê" e "Kauã")
+  function decodificarPayload(token){
+    const b64 = token.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+    const pad = b64 + '='.repeat((4 - b64.length % 4) % 4);
+    const bytes = Uint8Array.from(atob(pad), c => c.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
+
   document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const errMsg = document.getElementById('errMsg');
@@ -67,8 +75,8 @@
     const senha = document.getElementById('pass').value;
     try {
       const { token } = await Api.login(userKey, senha);
-      // decodifica payload só pra guardar nome/role localmente (não é validação, só exibição)
-      const payload = JSON.parse(atob(token.split('.')[0]));
+      // só para exibição (a validação real é feita no servidor)
+      const payload = decodificarPayload(token);
       Api.setSession(token, { userKey: payload.userKey, nome: payload.nome, role: payload.role });
       window.location.href = '/hub.html';
     } catch (err) {

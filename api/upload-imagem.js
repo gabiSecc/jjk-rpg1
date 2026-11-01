@@ -14,8 +14,9 @@ module.exports = async (req, res) => {
   if (!mimeType || !mimeType.startsWith('image/')) {
     return res.status(400).json({ error: 'Arquivo precisa ser uma imagem' });
   }
-  if (imagemBase64.length > 7_000_000) {
-    return res.status(413).json({ error: 'Imagem muito grande (máx ~5MB)' });
+  // A Vercel recusa corpos acima de ~4,5MB; base64 de 4M caracteres cabe com folga.
+  if (imagemBase64.length > 4_000_000) {
+    return res.status(413).json({ error: 'Imagem muito grande (máx ~3MB)' });
   }
 
   try {
