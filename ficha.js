@@ -43,6 +43,32 @@ function setPath(obj, path, value){
 function fmt(n){ return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 2 }); }
 function sinal(n){ return (n > 0 ? '+' : '') + fmt(n); }
 
+// ---------- dados ----------
+function rolarDados(qtd, faces){
+  let total = 0; const rolls = [];
+  for(let i = 0; i < qtd; i++){
+    const v = Math.floor(Math.random() * faces) + 1;
+    rolls.push(v); total += v;
+  }
+  return { total, rolls };
+}
+// "1d6+1d4" -> { total, detalhe }
+function rolarExpr(expr){
+  let total = 0; const partes = [];
+  String(expr).split('+').forEach(p => {
+    const m = p.trim().match(/^(\d+)d(\d+)$/);
+    if(!m) return;
+    const r = rolarDados(Number(m[1]), Number(m[2]));
+    total += r.total;
+    partes.push(`${p.trim()}[${r.rolls.join(',')}]`);
+  });
+  return { total, detalhe: partes.join(' + ') };
+}
+function rolarTeste(pts){
+  const r = rolarDados(1, 20);
+  return { total: r.total + pts, texto: `1d20[${r.total}] + ${pts} = ${r.total + pts}` };
+}
+
 window.addEventListener('beforeunload', (e) => { if(dirty){ e.preventDefault(); e.returnValue=''; } });
 
 // ============================================================
@@ -110,6 +136,7 @@ function normalizarFicha(f){
   if(f.status.emocaoNivel === undefined) f.status.emocaoNivel = 0;
   if(f.status.vidaAtual === undefined) f.status.vidaAtual = 0;
   if(f.status.eaAtual === undefined) f.status.eaAtual = 0;
+  delete f.status.cd; // fichas antigas: a CD foi substituída pela Defesa (recalculada na tela)
   // emoção antiga em texto livre: guarda em Observações antes de o servidor limpar
   const emoAntiga = String(f.status.emocaoAtual || '').trim();
   if(emoAntiga && !EMOCOES.some(e => e.key === emoAntiga)){
@@ -119,7 +146,10 @@ function normalizarFicha(f){
   }
 
   f.bonusTemp = Array.isArray(f.bonusTemp) ? f.bonusTemp : [];
-  f.bonusTemp.forEach(b => { if(!b.id) b.id = gerarId(); });
+  f.bonusTemp.forEach(b => {
+    if(!b.id) b.id = gerarId();
+    if(b.stat === 'cd') b.stat = 'defesa'; // bônus antigos de CD passam para Defesa
+  });
 
   f.blackFlash = f.blackFlash || { contador: 0, historico: [] };
   f.blackFlash.historico = Array.isArray(f.blackFlash.historico) ? f.blackFlash.historico : [];
@@ -189,6 +219,7 @@ function renderAll(){
   renderDominio();
   renderBlackFlash();
   renderInventario();
+  renderLiberacao();
   aplicarPermissoes();
 }
 
@@ -284,17 +315,53 @@ document.getElementById('btnMecanicaKaue').addEventListener('click', () => {
   renderAtributos();
 });
 
+// ---------- PESO DOS ITENS ----------
+function mapaPesos(){
+  const m = {};
+  catalogoItens.forEach(i => { m[i.id] = (typeof i.peso === 'number' && i.peso >= 0) ? i.peso : 1; });
+  return m;
+}
+function infoPeso(){
+  const total = calcularPesoTotal(ficha.inventario, mapaPesos());
+  const vig = grauParaPontos(ficha.atributos.vigor);
+  return { total, limite: vig, maximo: vig * 2, pen: calcularPenalidadePeso(ficha.atributos, total) };
+}
+function renderPeso(info){
+  const box = document.getElementById('pesoResumo');
+  const auto = document.getElementById('bonusAuto');
+  if(box){
+    let cls = 'ok';
+    let msg = `Peso carregado: ${fmt(info.total)} / ${info.limite} (máximo ${info.maximo})`;
+    if(info.total > info.maximo){ cls = 'over'; msg += ' — acima do máximo que você consegue carregar'; }
+    else if(info.pen > 0){ cls = 'warn'; msg += ` — penalidade de −${info.pen} em Agilidade e Velocidade`; }
+    box.className = 'peso-resumo ' + cls;
+    box.textContent = msg;
+  }
+  if(auto){
+    auto.innerHTML = info.pen > 0
+      ? `<div class="bonus-item"><span class="bonus-valor neg">−${info.pen}</span><span class="bonus-stat">Agilidade e Velocidade</span><span class="bonus-nota">excesso de peso (automático)</span></div>`
+      : '';
+  }
+}
+
 // ---------- ATRIBUTOS ----------
 const ATRIBUTOS_DEF = [
   { key:'quantidadeEA', label:'Quantidade de Energia Amaldiçoada', desc:'Define o tamanho do seu reservatório de EA.' },
   { key:'refinoEA', label:'Refino de Energia Amaldiçoada', desc:'Define a qualidade e a potência (Output) da sua EA.' },
   { key:'combate', label:'Combate', desc:'Habilidade de luta corpo a corpo e com armas.' },
-  { key:'agilidade', label:'Agilidade', desc:'Reflexos, esquiva e coordenação motora; compõe a CD.' },
+  { key:'agilidade', label:'Agilidade', desc:'Reflexos, esquiva e coordenação motora; compõe a Defesa.' },
   { key:'intelecto', label:'Intelecto', desc:'Raciocínio tático, leitura de combate e conhecimento.' },
-  { key:'vigor', label:'Vigor', desc:'Resistência física; define Vida, Bloquear e compõe a CD.' },
+  { key:'vigor', label:'Vigor', desc:'Resistência física; define Vida, Bloquear e compõe a Defesa.' },
   { key:'presenca', label:'Presença', desc:'Aura, intimidação e força de vontade.' },
   { key:'velocidade', label:'Velocidade', desc:'Rapidez de movimento e de ação no turno.' }
 ];
+
+function penalidadeDoAtributo(key){
+  return (key === 'agilidade' || key === 'velocidade') ? infoPeso().pen : 0;
+}
+function pontosEfetivos(key){
+  return Math.max(0, grauParaPontos(ficha.atributos[key]) - penalidadeDoAtributo(key));
+}
 
 function renderAtributos(){
   const grid = document.getElementById('attrGrid');
@@ -325,7 +392,6 @@ function renderAtributos(){
     select.addEventListener('change', () => {
       ficha.atributos[def.key] = select.value;
       dirty = true;
-      atualizarModificadorEl(document.getElementById('mod_'+def.key), select.value);
       renderStatusDerivado();
     });
     const plus = item.querySelector('[data-plus]');
@@ -340,11 +406,17 @@ function renderAtributos(){
       });
     }
     grid.appendChild(item);
-    atualizarModificadorEl(item.querySelector(`#mod_${def.key}`), atual);
   });
+  atualizarModificadores();
 }
-function atualizarModificadorEl(el, grauLabel){
-  el.textContent = `1d20 + ${grauParaModificador(grauLabel)}`;
+function atualizarModificadores(){
+  ATRIBUTOS_DEF.forEach(def => {
+    const el = document.getElementById('mod_' + def.key);
+    if(!el) return;
+    const pen = penalidadeDoAtributo(def.key);
+    const pts = Math.max(0, grauParaModificador(ficha.atributos[def.key]) - pen);
+    el.textContent = `1d20 + ${pts}` + (pen > 0 ? ` (−${pen} peso)` : '');
+  });
 }
 
 // ---------- status derivado ----------
@@ -361,20 +433,28 @@ function setInputSePermitido(id, valor){
 }
 
 function renderStatusDerivado(){
-  const d = calcularStatusDerivado(ficha.atributos, ficha.blackFlash, ficha.bonusTemp);
+  const info = infoPeso();
+  const d = calcularStatusDerivado(ficha.atributos, ficha.blackFlash, ficha.bonusTemp, info.pen);
   const bt = somaBonusTemp(ficha.bonusTemp);
   ficha.status.vidaMax = d.vidaMax;
   ficha.status.eaMax = d.eaMax;
   ficha.status.bloquear = d.bloquear;
-  ficha.status.cd = d.cd;
+  ficha.status.defesa = d.defesa;
   ficha.status.output = d.output;
+  delete ficha.status.cd;
 
   document.getElementById('disp_vidaMax').textContent = fmt(d.vidaMax);
   document.getElementById('disp_eaMax').textContent = fmt(d.eaMax);
   document.getElementById('disp_bloquear').textContent = fmt(d.bloquear);
-  document.getElementById('disp_cd').textContent = fmt(d.cd);
+  document.getElementById('disp_defesa').textContent = fmt(d.defesa);
+  document.getElementById('disp_esquivar').textContent = fmt(d.defesa + pontosEfetivos('velocidade'));
   document.getElementById('disp_output').textContent = fmt(d.output);
   STATS_BONUS.forEach(s => setBonusTag(s.key, bt[s.key]));
+
+  // dano desarmado (pelo grau de Combate) e dano mínimo para manobras
+  const dd = danoDesarmado(grauParaPontos(ficha.atributos.combate));
+  document.getElementById('disp_danoDesarmado').textContent = dd.texto + (dd.calamidade ? ' (Especial +)' : '');
+  document.getElementById('disp_manobra').textContent = fmt(dd.minimo);
 
   const bf = somaBlackFlash(ficha.blackFlash.historico);
   const n = ficha.blackFlash.historico.length;
@@ -388,7 +468,17 @@ function renderStatusDerivado(){
   const pctEA = d.eaMax > 0 ? Math.max(0, Math.min(100, (ficha.status.eaAtual/d.eaMax)*100)) : 0;
   document.getElementById('bar_vida').style.width = pctVida + '%';
   document.getElementById('bar_ea').style.width = pctEA + '%';
+
+  renderPeso(info);
+  atualizarModificadores();
 }
+
+document.getElementById('btnRolarDano').addEventListener('click', () => {
+  const dd = danoDesarmado(grauParaPontos(ficha.atributos.combate));
+  const r = rolarExpr(dd.dados);
+  const total = Math.max(0, r.total + dd.mod);
+  document.getElementById('rolagemDano').textContent = `${r.detalhe} ${dd.mod >= 0 ? '+' : '−'} ${Math.abs(dd.mod)} = ${total}`;
+});
 
 // ---------- BÔNUS TEMPORÁRIOS ----------
 function renderBonusTemp(){
@@ -421,7 +511,7 @@ function renderBonusTemp(){
     btn.addEventListener('click', () => {
       ficha.bonusTemp.splice(Number(btn.getAttribute('data-bonus-remove')), 1);
       // o status volta ao normal: vida/EA atuais não podem passar do novo máximo
-      const d = calcularStatusDerivado(ficha.atributos, ficha.blackFlash, ficha.bonusTemp);
+      const d = calcularStatusDerivado(ficha.atributos, ficha.blackFlash, ficha.bonusTemp, infoPeso().pen);
       if((ficha.status.vidaAtual || 0) > d.vidaMax) ficha.status.vidaAtual = d.vidaMax;
       if((ficha.status.eaAtual || 0) > d.eaMax) ficha.status.eaAtual = d.eaMax;
       dirty = true;
@@ -694,7 +784,8 @@ function montarSelectCatalogo(){
   catalogoItens.forEach(it => {
     const opt = document.createElement('option');
     opt.value = it.id;
-    opt.textContent = it.nome + (it.tipo ? ` (${it.tipo})` : '');
+    const peso = (typeof it.peso === 'number') ? it.peso : 1;
+    opt.textContent = it.nome + (it.tipo ? ` (${it.tipo})` : '') + ` · peso ${fmt(peso)}`;
     sel.appendChild(opt);
   });
 }
@@ -702,19 +793,25 @@ function renderInventario(){
   montarSelectCatalogo();
   const wrap = document.getElementById('inventarioList');
   wrap.innerHTML = '';
+  renderStatusDerivado(); // atualiza peso, penalidade e defesa
   if(ficha.inventario.length === 0){
     wrap.innerHTML = '<div class="empty-state">Inventário vazio. Adicione itens do catálogo acima.</div>';
     return;
   }
+  const pesos = mapaPesos();
   ficha.inventario.forEach((entry, idx) => {
     const item = catalogoItens.find(i => i.id === entry.itemId);
+    const peso = pesos[entry.itemId];
+    const meta = [];
+    if(item?.dano) meta.push('dano: ' + escapeHtml(item.dano));
+    if(item) meta.push('peso: ' + fmt(peso));
     const row = document.createElement('div');
     row.className = 'inv-item';
     row.innerHTML = `
       <div class="inv-item-img" style="${item?.imagemUrl ? `background-image:url('${item.imagemUrl}')` : ''}"></div>
       <div class="inv-item-info">
         <div class="inv-item-name">${escapeHtml(item ? item.nome : '(item removido do catálogo)')}</div>
-        <div class="inv-item-meta">${item?.dano ? 'dano: ' + escapeHtml(item.dano) : ''}</div>
+        <div class="inv-item-meta">${meta.join(' · ')}</div>
       </div>
       <input type="number" class="inv-item-qty" min="1" value="${entry.quantidade || 1}" data-inv-qty="${idx}">
       <button class="btn-remove" data-inv-remove="${idx}" type="button">✕</button>
@@ -723,8 +820,9 @@ function renderInventario(){
   });
   wrap.querySelectorAll('[data-inv-qty]').forEach(el => {
     el.addEventListener('input', () => {
-      ficha.inventario[Number(el.getAttribute('data-inv-qty'))].quantidade = Number(el.value || 1);
+      ficha.inventario[Number(el.getAttribute('data-inv-qty'))].quantidade = Math.max(1, Number(el.value || 1));
       dirty = true;
+      renderStatusDerivado();
     });
   });
   wrap.querySelectorAll('[data-inv-remove]').forEach(btn => {
@@ -742,6 +840,106 @@ document.getElementById('btnAddInvItem').addEventListener('click', () => {
   else ficha.inventario.push({ itemId: sel.value, quantidade: 1 });
   dirty = true; renderInventario();
 });
+
+// ============================================================
+// LIBERAÇÃO DE ENERGIA (calculadora)
+// Imbuir: a cada 10 de EA = +1 de dano e de resistência no objeto.
+// Disparar controlado: 1d4 a cada 10 de EA, com teste de Refino.
+// Disparar bruto: o dano é um teste de Quantidade de EA; custo = dobro da EA
+//   liberada, com a parte extra reduzida por outro teste de Quantidade de EA.
+// ============================================================
+const libCusto = { controlada: 0, bruta: 0 };
+
+function numeroDe(id){ return Math.max(0, Math.floor(Number(document.getElementById(id).value) || 0)); }
+function setHtml(id, html){ document.getElementById(id).innerHTML = html; }
+
+function gastarEA(custo){
+  if(!custo){ toast('Faça a rolagem/cálculo antes de gastar a EA.', true); return; }
+  const atual = Number(ficha.status.eaAtual) || 0;
+  if(custo > atual){ toast(`EA insuficiente: custo ${fmt(custo)}, você tem ${fmt(atual)}.`, true); return; }
+  ficha.status.eaAtual = atual - custo;
+  dirty = true;
+  renderStatusDerivado();
+  toast(`−${fmt(custo)} de EA. Não esqueça de salvar a ficha.`);
+}
+
+function atualizarImbuir(){
+  const ea = numeroDe('li_ea');
+  const n = Math.floor(ea / 10);
+  setHtml('li_imb_out', n > 0
+    ? `<strong>${n}</strong> ponto(s) de imbuição: <strong>+${n}</strong> de dano e <strong>+${n}</strong> de resistência no objeto. Custo: <strong>${n * 10}</strong> de EA.`
+    : 'Informe pelo menos 10 de EA.');
+}
+function atualizarControlada(){
+  const n = Math.floor(numeroDe('li_ea_c') / 10);
+  setHtml('li_c_prev', n > 0 ? `Dano: <strong>${n}d4</strong> · Custo: <strong>${n * 10}</strong> de EA` : 'Informe pelo menos 10 de EA.');
+}
+function atualizarBruta(){
+  const ea = numeroDe('li_ea_b');
+  setHtml('li_b_prev', ea > 0 ? `EA liberada: <strong>${ea}</strong> · custo máximo (sem redução): <strong>${ea * 2}</strong>` : 'Informe a EA a liberar.');
+}
+
+function renderLiberacao(){
+  atualizarImbuir(); atualizarControlada(); atualizarBruta();
+}
+
+document.querySelectorAll('[data-lib-tab]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const alvo = btn.getAttribute('data-lib-tab');
+    document.querySelectorAll('[data-lib-tab]').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('[data-lib-panel]').forEach(p => p.classList.toggle('hidden', p.getAttribute('data-lib-panel') !== alvo));
+  });
+});
+
+document.getElementById('li_ea').addEventListener('input', atualizarImbuir);
+document.getElementById('li_ea_c').addEventListener('input', atualizarControlada);
+document.getElementById('li_ea_b').addEventListener('input', atualizarBruta);
+
+// Imbuir: gastar EA
+document.getElementById('btnImbuirGastar').addEventListener('click', () => {
+  gastarEA(Math.floor(numeroDe('li_ea') / 10) * 10);
+});
+// Imbuir: dano sofrido pelo objeto (a redução, ex. o bloqueio, é informada à mão)
+document.getElementById('btnImbuirDano').addEventListener('click', () => {
+  const atual = numeroDe('li_imb_atual');
+  const dano = numeroDe('li_imb_dano');
+  const reducao = numeroDe('li_imb_red');
+  const perda = Math.max(0, dano - reducao);
+  const novo = Math.max(0, atual - perda);
+  setHtml('li_imb_res',
+    `Dano ${dano} − redução ${reducao} = <strong>${perda}</strong> chega à imbuição. ` +
+    `Imbuição: ${atual} → <strong>${novo}</strong>${novo === 0 && atual > 0 ? ' (a imbuição se dissipou)' : ''}.`);
+});
+
+// Disparar controlado
+document.getElementById('btnControlada').addEventListener('click', () => {
+  const n = Math.floor(numeroDe('li_ea_c') / 10);
+  if(n < 1){ toast('Informe pelo menos 10 de EA.', true); return; }
+  const atk = rolarTeste(grauParaPontos(ficha.atributos.refinoEA));
+  const dano = rolarDados(n, 4);
+  libCusto.controlada = n * 10;
+  setHtml('li_c_res',
+    `Teste de Refino: <strong>${atk.texto}</strong><br>` +
+    `Dano: ${n}d4[${dano.rolls.join(',')}] = <strong>${dano.total}</strong> · Custo: ${n * 10} de EA`);
+});
+document.getElementById('btnControladaGastar').addEventListener('click', () => gastarEA(libCusto.controlada));
+
+// Disparar bruto
+document.getElementById('btnBruta').addEventListener('click', () => {
+  const ea = numeroDe('li_ea_b');
+  if(ea < 1){ toast('Informe a EA a liberar.', true); return; }
+  const pts = grauParaPontos(ficha.atributos.quantidadeEA);
+  const dano = rolarTeste(pts);
+  const reducao = rolarTeste(pts);
+  const extra = Math.max(0, ea - reducao.total);
+  const custo = ea + extra;
+  libCusto.bruta = custo;
+  setHtml('li_b_res',
+    `Dano (teste de Quantidade de EA): <strong>${dano.texto}</strong><br>` +
+    `Redução do custo extra: ${reducao.texto}<br>` +
+    `Custo: ${ea} + ${extra} (extra após a redução) = <strong>${custo}</strong> de EA`);
+});
+document.getElementById('btnBrutaGastar').addEventListener('click', () => gastarEA(libCusto.bruta));
 
 // ---------- TABELA DE GRAU (referência) ----------
 function renderTabelaGrau(){

@@ -36,6 +36,68 @@ function eaBase(pts) {
 }
 
 // ============================================================
+// VIDA (por faixa de 3 pontos de Vigor)
+// G4=10, G3=11, sG2=12, G2=13, sG1=14, G1=15, Especial=20, Especial+=25, Calamidade=50
+// Cada ponto de Vigor vale o valor da faixa em que ele está.
+// ============================================================
+const VIDA_POR_FAIXA = [10, 11, 12, 13, 14, 15, 20, 25];
+const VIDA_CALAMIDADE = 50;
+function vidaPorPontos(pts) {
+  let total = 0;
+  for (let p = 1; p <= pts; p++) {
+    const faixa = Math.floor((p - 1) / 3);
+    total += faixa < VIDA_POR_FAIXA.length ? VIDA_POR_FAIXA[faixa] : VIDA_CALAMIDADE;
+  }
+  return total;
+}
+
+// ============================================================
+// DANO DESARMADO (pelo grau de Combate)
+// mods = [-grau, grau, +grau]. Restrito usa o mesmo dano do -G4.
+// Calamidade: dano fixo de Especial + (6d6+6) + habilidades únicas.
+// ============================================================
+const DANO_DESARMADO = [
+  { dados: '1d4',      qtd: 1, mods: [-1, 0, 0] },   // G4
+  { dados: '1d6',      qtd: 1, mods: [0, 1, 2] },    // G3
+  { dados: '1d6+1d4',  qtd: 2, mods: [1, 2, 3] },    // semi G2
+  { dados: '1d8+1d6',  qtd: 2, mods: [2, 3, 4] },    // G2
+  { dados: '1d10+2d4', qtd: 3, mods: [3, 4, 5] },    // semi G1
+  { dados: '2d10',     qtd: 2, mods: [4, 5, 6] },    // G1
+  { dados: '4d6',      qtd: 4, mods: [2, 3, 4] },    // semi Especial
+  { dados: '6d6',      qtd: 6, mods: [2, 4, 6] }     // Especial
+];
+function danoDesarmado(pts) {
+  const calamidade = pts >= 25;
+  const p = calamidade ? 24 : Math.max(1, pts);
+  const f = DANO_DESARMADO[Math.floor((p - 1) / 3)];
+  const mod = f.mods[(p - 1) % 3];
+  const texto = f.dados + (mod > 0 ? '+' + mod : mod < 0 ? String(mod) : '');
+  // manobra de combate = dano mínimo do ataque desarmado (cada dado no mínimo 1)
+  return { dados: f.dados, mod, texto, minimo: Math.max(0, f.qtd + mod), calamidade };
+}
+
+// ============================================================
+// PESO DOS ITENS
+// Sem penalidade até (pontos de Vigor). Máximo = dobro do Vigor.
+// A cada 2 pontos acima do limite: -1 em Agilidade E Velocidade.
+// mapaPesos = { itemId: peso }. Item que não existe mais no catálogo pesa 0.
+// ============================================================
+function calcularPesoTotal(inventario, mapaPesos) {
+  let total = 0;
+  (inventario || []).forEach(e => {
+    if (!e || !e.itemId) return;
+    const peso = mapaPesos && typeof mapaPesos[e.itemId] === 'number' ? mapaPesos[e.itemId] : 0;
+    total += peso * (Number(e.quantidade) || 1);
+  });
+  return total;
+}
+function calcularPenalidadePeso(atributos, pesoTotal) {
+  const vigor = grauParaPontos((atributos || {}).vigor);
+  const excesso = pesoTotal - vigor;
+  return excesso > 0 ? Math.floor(excesso / 2) : 0;
+}
+
+// ============================================================
 // STATUS DERIVADO
 // ============================================================
 const KOKUSEN_PERC = 0.2;
@@ -45,23 +107,25 @@ const STATS_BONUS = [
   { key: 'vidaMax', label: 'Vida máxima' },
   { key: 'eaMax', label: 'EA máxima' },
   { key: 'bloquear', label: 'Bloquear' },
-  { key: 'cd', label: 'CD' },
+  { key: 'defesa', label: 'Defesa' },
   { key: 'output', label: 'Output' }
 ];
 
 function gerarId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 
 // Valores "puros" vindos só dos atributos (sem Kokusen e sem bônus temporário)
-function calcularBase(atributos) {
+// penalidadePeso reduz Agilidade (e Velocidade) efetivas.
+function calcularBase(atributos, penalidadePeso) {
   const a = atributos || {};
+  const pen = Number(penalidadePeso) || 0;
   const vigor = grauParaPontos(a.vigor);
-  const agi = grauParaPontos(a.agilidade);
+  const agi = Math.max(0, grauParaPontos(a.agilidade) - pen);
   return {
-    vidaMax: vigor * 10,
+    vidaMax: vidaPorPontos(vigor),
     eaBase: eaBase(grauParaPontos(a.quantidadeEA)),
     outputBase: grauParaPontos(a.refinoEA) * 20,
-    bloquear: 5 + vigor,
-    cd: agi + vigor
+    bloquear: vigor,                       // + dano da arma (o jogador soma manualmente)
+    defesa: 10 + Math.max(vigor, agi)      // defesa natural
   };
 }
 
@@ -73,9 +137,11 @@ function somaBlackFlash(historico) {
 }
 
 function somaBonusTemp(lista) {
-  const t = { vidaMax: 0, eaMax: 0, bloquear: 0, cd: 0, output: 0 };
+  const t = { vidaMax: 0, eaMax: 0, bloquear: 0, defesa: 0, output: 0 };
   (lista || []).forEach(b => {
-    if (b && Object.prototype.hasOwnProperty.call(t, b.stat)) t[b.stat] += Number(b.valor) || 0;
+    if (!b) return;
+    const stat = b.stat === 'cd' ? 'defesa' : b.stat; // fichas antigas: CD virou Defesa
+    if (Object.prototype.hasOwnProperty.call(t, stat)) t[stat] += Number(b.valor) || 0;
   });
   return t;
 }
@@ -90,15 +156,15 @@ function ganhoKokusen(base, historicoAnterior) {
   };
 }
 
-function calcularStatusDerivado(atributos, blackFlash, bonusTemp) {
-  const base = calcularBase(atributos);
+function calcularStatusDerivado(atributos, blackFlash, bonusTemp, penalidadePeso) {
+  const base = calcularBase(atributos, penalidadePeso);
   const bf = somaBlackFlash(blackFlash && blackFlash.historico);
   const bt = somaBonusTemp(bonusTemp);
   return {
     vidaMax: base.vidaMax + bt.vidaMax,
     eaMax: base.eaBase + bf.ea + bt.eaMax,
     bloquear: base.bloquear + bt.bloquear,
-    cd: base.cd + bt.cd,
+    defesa: base.defesa + bt.defesa,
     output: base.outputBase + bf.out + bt.output
   };
 }

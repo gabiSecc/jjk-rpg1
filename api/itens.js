@@ -7,6 +7,14 @@ function urlSegura(u) {
   return /^https:\/\/[^\s'"()<>\\]+$/.test(s) ? s : '';
 }
 
+// Peso: número >= 0; vazio/inválido vira 1
+function pesoSeguro(p) {
+  if (p === '' || p === null || p === undefined) return 1;
+  const n = Number(p);
+  if (!isFinite(n) || n < 0) return 1;
+  return Math.min(1000, Math.round(n * 100) / 100);
+}
+
 module.exports = async (req, res) => {
   const session = requireSession(req);
   if (!session) return res.status(401).json({ error: 'Sessão inválida ou expirada' });
@@ -19,13 +27,17 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') {
       const snap = await col.get();
       const lista = snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
+        .map(d => {
+          const it = { id: d.id, ...d.data() };
+          if (typeof it.peso !== 'number') it.peso = 1; // itens antigos entram com peso 1
+          return it;
+        })
         .sort((a, b) => (b.criadoEm || 0) - (a.criadoEm || 0));
       return res.status(200).json({ itens: lista });
     }
 
     if (req.method === 'POST') {
-      const { nome, descricao, dano, tipo, imagemUrl } = req.body || {};
+      const { nome, descricao, dano, tipo, imagemUrl, peso } = req.body || {};
       if (!nome || !String(nome).trim()) return res.status(400).json({ error: 'Nome do item é obrigatório' });
 
       const novo = {
@@ -33,6 +45,7 @@ module.exports = async (req, res) => {
         descricao: String(descricao || '').slice(0, 2000),
         dano: String(dano || '').slice(0, 100),
         tipo: String(tipo || '').slice(0, 100),
+        peso: pesoSeguro(peso),
         imagemUrl: urlSegura(imagemUrl),
         criadoPor: session.nome,
         criadoPorUserKey: session.userKey,

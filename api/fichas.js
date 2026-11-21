@@ -1,13 +1,29 @@
 // api/fichas.js
 const {
   getAdmin, requireSession, calcularStatusDerivado, fichaVazia,
-  processarBlackFlash, sanitizarBonusTemp, sanitizarEmocao
+  processarBlackFlash, sanitizarBonusTemp, sanitizarEmocao,
+  calcularPesoTotal, calcularPenalidadePeso
 } = require('./_shared');
 
 // Aceita só URL https sem caracteres que quebrem o CSS/HTML; senão vira ''
 function urlSegura(u) {
   const s = String(u || '');
   return /^https:\/\/[^\s'"()<>\\]+$/.test(s) ? s : '';
+}
+
+// Lê do catálogo o peso de cada item do inventário (peso ausente = 1)
+async function carregarPesos(db, inventario) {
+  const ids = [...new Set((Array.isArray(inventario) ? inventario : [])
+    .map(e => e && e.itemId).filter(id => typeof id === 'string' && id))].slice(0, 200);
+  const mapa = {};
+  if (!ids.length) return mapa;
+  const snaps = await db.getAll(...ids.map(id => db.collection('itens').doc(id)));
+  snaps.forEach(s => {
+    if (!s.exists) return;
+    const p = s.data().peso;
+    mapa[s.id] = (typeof p === 'number' && p >= 0) ? p : 1;
+  });
+  return mapa;
 }
 
 module.exports = async (req, res) => {
@@ -96,11 +112,18 @@ module.exports = async (req, res) => {
 
       // Normalizações com regras no servidor
       nova.status = nova.status || {};
+      delete nova.status.cd; // fichas antigas: CD foi substituída por Defesa
       sanitizarEmocao(nova.status);
       nova.bonusTemp = sanitizarBonusTemp(nova.bonusTemp);
       processarBlackFlash(nova, atual);
 
-      const derivado = calcularStatusDerivado(nova.atributos, nova.blackFlash, nova.bonusTemp);
+      // Peso do inventário -> penalidade em Agilidade/Velocidade -> Defesa
+      nova.inventario = Array.isArray(nova.inventario) ? nova.inventario : [];
+      const pesos = await carregarPesos(db, nova.inventario);
+      const pesoTotal = calcularPesoTotal(nova.inventario, pesos);
+      const penalidade = calcularPenalidadePeso(nova.atributos, pesoTotal);
+
+      const derivado = calcularStatusDerivado(nova.atributos, nova.blackFlash, nova.bonusTemp, penalidade);
       nova.status = { ...nova.status, ...derivado };
       nova._meta = { ...(atual._meta || {}), atualizadoEm: Date.now() };
 

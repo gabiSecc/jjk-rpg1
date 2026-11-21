@@ -106,22 +106,51 @@ function eaBase(pts) {
   return 100 * Math.pow(2, faixa) + pos * 50 * Math.pow(2, faixa - 1);
 }
 
+// Vida por faixa de 3 pontos de Vigor (cada ponto vale o valor da sua faixa)
+const VIDA_POR_FAIXA = [10, 11, 12, 13, 14, 15, 20, 25];
+const VIDA_CALAMIDADE = 50;
+function vidaPorPontos(pts) {
+  let total = 0;
+  for (let p = 1; p <= pts; p++) {
+    const faixa = Math.floor((p - 1) / 3);
+    total += faixa < VIDA_POR_FAIXA.length ? VIDA_POR_FAIXA[faixa] : VIDA_CALAMIDADE;
+  }
+  return total;
+}
+
+// Peso: sem penalidade até (pontos de Vigor); a cada 2 acima, -1 em Agilidade e Velocidade
+function calcularPesoTotal(inventario, mapaPesos) {
+  let total = 0;
+  (inventario || []).forEach(e => {
+    if (!e || !e.itemId) return;
+    const peso = mapaPesos && typeof mapaPesos[e.itemId] === 'number' ? mapaPesos[e.itemId] : 0;
+    total += peso * (Number(e.quantidade) || 1);
+  });
+  return total;
+}
+function calcularPenalidadePeso(atributos, pesoTotal) {
+  const vigor = grauParaPontos((atributos || {}).vigor);
+  const excesso = pesoTotal - vigor;
+  return excesso > 0 ? Math.floor(excesso / 2) : 0;
+}
+
 const KOKUSEN_PERC = 0.2;
-const STATS_BONUS = ['vidaMax', 'eaMax', 'bloquear', 'cd', 'output'];
+const STATS_BONUS = ['vidaMax', 'eaMax', 'bloquear', 'defesa', 'output'];
 const EMOCOES_NOMES = ['Felicidade', 'Concentração', 'Coragem', 'Raiva', 'Insegurança', 'Tristeza'];
 
 function gerarId() { return crypto.randomBytes(6).toString('hex'); }
 
-function calcularBase(atributos) {
+function calcularBase(atributos, penalidadePeso) {
   const a = atributos || {};
+  const pen = Number(penalidadePeso) || 0;
   const vigor = grauParaPontos(a.vigor);
-  const agi = grauParaPontos(a.agilidade);
+  const agi = Math.max(0, grauParaPontos(a.agilidade) - pen);
   return {
-    vidaMax: vigor * 10,
+    vidaMax: vidaPorPontos(vigor),
     eaBase: eaBase(grauParaPontos(a.quantidadeEA)),
     outputBase: grauParaPontos(a.refinoEA) * 20,
-    bloquear: 5 + vigor,
-    cd: agi + vigor
+    bloquear: vigor,
+    defesa: 10 + Math.max(vigor, agi)
   };
 }
 function somaBlackFlash(historico) {
@@ -130,9 +159,11 @@ function somaBlackFlash(historico) {
   return { ea, out };
 }
 function somaBonusTemp(lista) {
-  const t = { vidaMax: 0, eaMax: 0, bloquear: 0, cd: 0, output: 0 };
+  const t = { vidaMax: 0, eaMax: 0, bloquear: 0, defesa: 0, output: 0 };
   (lista || []).forEach(b => {
-    if (b && Object.prototype.hasOwnProperty.call(t, b.stat)) t[b.stat] += Number(b.valor) || 0;
+    if (!b) return;
+    const stat = b.stat === 'cd' ? 'defesa' : b.stat;
+    if (Object.prototype.hasOwnProperty.call(t, stat)) t[stat] += Number(b.valor) || 0;
   });
   return t;
 }
@@ -144,22 +175,20 @@ function ganhoKokusen(base, historicoAnterior) {
   };
 }
 
-function calcularStatusDerivado(atributos, blackFlash, bonusTemp) {
-  const base = calcularBase(atributos);
+function calcularStatusDerivado(atributos, blackFlash, bonusTemp, penalidadePeso) {
+  const base = calcularBase(atributos, penalidadePeso);
   const bf = somaBlackFlash(blackFlash && blackFlash.historico);
   const bt = somaBonusTemp(bonusTemp);
   return {
     vidaMax: base.vidaMax + bt.vidaMax,
     eaMax: base.eaBase + bf.ea + bt.eaMax,
     bloquear: base.bloquear + bt.bloquear,
-    cd: base.cd + bt.cd,
+    defesa: base.defesa + bt.defesa,
     output: base.outputBase + bf.out + bt.output
   };
 }
 
 // Black Flash: cada registro guarda o ganho de EA/Output do MOMENTO em que foi criado.
-// Registros que já existiam no banco mantêm o ganho antigo (o cliente não consegue alterá-lo);
-// registros novos (id desconhecido) têm o ganho calculado aqui, com os atributos atuais.
 function processarBlackFlash(nova, atual) {
   const bf = nova.blackFlash || {};
   const hist = Array.isArray(bf.historico) ? bf.historico : [];
@@ -195,6 +224,7 @@ function processarBlackFlash(nova, atual) {
 
 function sanitizarBonusTemp(lista) {
   return (Array.isArray(lista) ? lista : [])
+    .map(b => (b && b.stat === 'cd' ? { ...b, stat: 'defesa' } : b)) // fichas antigas: CD virou Defesa
     .filter(b => b && STATS_BONUS.includes(b.stat))
     .slice(0, 50)
     .map(b => ({
@@ -220,7 +250,7 @@ function fichaVazia(nome) {
     basico: { nome: nome || '', tecnica: '', cla: '', classe: '', nacionalidade: '', idade: '', altura: '', peso: '' },
     imagens: { bannerUrl: '', tokenUrl: '' },
     descricao: '',
-    status: { emocaoAtual: '', emocaoNivel: 0, vidaAtual: 0, vidaMax: 0, bloquear: 0, cd: 0, eaAtual: 0, eaMax: 0, output: 0 },
+    status: { emocaoAtual: '', emocaoNivel: 0, vidaAtual: 0, vidaMax: 0, bloquear: 0, defesa: 0, eaAtual: 0, eaMax: 0, output: 0 },
     bonusTemp: [],
     atributos: { quantidadeEA: '-G4', refinoEA: '-G4', combate: '-G4', agilidade: '-G4', intelecto: '-G4', vigor: '-G4', presenca: '-G4', velocidade: '-G4' },
     mecanicaKaue: { ativo: false },
@@ -242,7 +272,8 @@ function fichaVazia(nome) {
 module.exports = {
   USERS, login, verify, requireSession,
   getAdmin, uploadImagem,
-  TABELA_GRAU, grauParaPontos, eaBase, calcularBase, ganhoKokusen,
+  TABELA_GRAU, grauParaPontos, eaBase, vidaPorPontos, calcularBase, ganhoKokusen,
+  calcularPesoTotal, calcularPenalidadePeso,
   calcularStatusDerivado, processarBlackFlash, sanitizarBonusTemp, sanitizarEmocao,
   fichaVazia
 };

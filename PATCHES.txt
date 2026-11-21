@@ -1,0 +1,329 @@
+=====================================================================
+PATCHES — faça na ordem. Cada bloco: ENCONTRAR (já existe) -> TROCAR POR
+=====================================================================
+
+
+#####################################################################
+# 1) public/ficha.html
+#####################################################################
+
+---------- 1.1  Bloco de status derivado ----------
+ENCONTRAR (o bloco inteiro <div class="status-derived"> ... </div>):
+
+    <div class="status-derived">
+      <div class="derived-col">
+        <div class="derived-item"><span class="derived-label">Bloquear</span><span class="derived-value" id="disp_bloquear">0</span><span class="bonus-tag" id="bonus_bloquear"></span></div>
+        <div class="derived-item"><span class="derived-label">CD</span><span class="derived-value" id="disp_cd">0</span><span class="bonus-tag" id="bonus_cd"></span></div>
+      </div>
+      <div class="derived-item"><span class="derived-label">Output</span><span class="derived-value" id="disp_output">0</span><span class="bonus-tag" id="bonus_output"></span></div>
+    </div>
+
+TROCAR POR:
+
+    <div class="status-derived">
+      <div class="derived-col">
+        <div class="derived-item"><span class="derived-label">Bloquear</span><span class="derived-value" id="disp_bloquear">0</span><span class="bonus-tag" id="bonus_bloquear"></span></div>
+        <div class="derived-item"><span class="derived-label">Defesa</span><span class="derived-value" id="disp_defesa">0</span><span class="bonus-tag" id="bonus_defesa"></span></div>
+        <div class="derived-item"><span class="derived-label">Esquivar</span><span class="derived-value" id="disp_esquivar">0</span></div>
+      </div>
+      <div class="derived-col">
+        <div class="derived-item"><span class="derived-label">Output</span><span class="derived-value" id="disp_output">0</span><span class="bonus-tag" id="bonus_output"></span></div>
+        <div class="derived-item"><span class="derived-label">Dano desarmado</span><span class="derived-value small" id="disp_danoDesarmado">-</span></div>
+        <div class="derived-item"><span class="derived-label">Manobra de combate</span><span class="derived-value small" id="disp_manobra">0</span></div>
+        <div class="derived-item"><button type="button" class="btn btn-ghost btn-sm" id="btnRolarDano">Rolar dano desarmado</button><span class="rolagem" id="rolagemDano"></span></div>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:12px;">Bloquear = Vigor; some o dano da arma na hora (ou use um bônus temporário). Defesa natural = 10 + o maior entre Vigor e Agilidade. Esquivar = Defesa + Velocidade. Manobra de combate causa o dano mínimo do desarmado.</p>
+
+
+---------- 1.2  Bônus automático de peso ----------
+ENCONTRAR:
+
+    <div id="bonusList" class="dynamic-list"></div>
+
+TROCAR POR:
+
+    <div id="bonusAuto"></div>
+    <div id="bonusList" class="dynamic-list"></div>
+
+
+---------- 1.3  Resumo de peso no inventário ----------
+ENCONTRAR:
+
+    <p class="hint">Adicione itens do catálogo compartilhado da mesa ao inventário deste personagem.</p>
+
+TROCAR POR:
+
+    <p class="hint">Adicione itens do catálogo compartilhado da mesa ao inventário deste personagem. Sem penalidade até o seu Vigor (em pontos de grau); o máximo é o dobro. A cada 2 pontos acima do limite: −1 em Agilidade e Velocidade.</p>
+    <div id="pesoResumo" class="peso-resumo ok"></div>
+
+
+---------- 1.4  Novo card: Liberação de Energia ----------
+ENCONTRAR:
+
+  <section class="card"><h2>História / Lore</h2>
+
+TROCAR POR (cole este bloco ANTES dessa linha, mantendo a linha original depois):
+
+  <section class="card">
+    <h2>Liberação de Energia</h2>
+    <p class="hint">Duas formas: imbuir um objeto ou disparar. A calculadora rola os dados e, se quiser, desconta a EA da ficha (salve a ficha depois).</p>
+    <div class="lib-tabs">
+      <button type="button" class="lib-tab active" data-lib-tab="imbuir">Imbuir</button>
+      <button type="button" class="lib-tab" data-lib-tab="controlada">Disparar (controlado)</button>
+      <button type="button" class="lib-tab" data-lib-tab="bruta">Disparar (bruto)</button>
+    </div>
+
+    <div data-lib-panel="imbuir">
+      <p class="hint">A cada 10 de EA: +1 de dano e +1 de resistência no objeto. O objeto perde imbuição igual ao dano que levar (depois da redução).</p>
+      <div class="lib-row">
+        <div class="field-block"><label>EA a imbuir</label><input type="number" id="li_ea" min="0" value="0"></div>
+        <button type="button" class="btn btn-ghost btn-sm" id="btnImbuirGastar">Gastar EA da ficha</button>
+      </div>
+      <div class="lib-out" id="li_imb_out"></div>
+      <h3 class="sub-title">Dano sofrido pelo objeto</h3>
+      <div class="lib-row">
+        <div class="field-block"><label>Imbuição atual</label><input type="number" id="li_imb_atual" min="0" value="0"></div>
+        <div class="field-block"><label>Dano recebido</label><input type="number" id="li_imb_dano" min="0" value="0"></div>
+        <div class="field-block"><label>Redução (ex.: bloqueio)</label><input type="number" id="li_imb_red" min="0" value="0"></div>
+        <button type="button" class="btn btn-ghost btn-sm" id="btnImbuirDano">Calcular</button>
+      </div>
+      <div class="lib-out" id="li_imb_res"></div>
+    </div>
+
+    <div data-lib-panel="controlada" class="hidden">
+      <p class="hint">Dispara em um alvo: 1d4 de dano a cada 10 de EA gasta, com um teste de Refino para acertar.</p>
+      <div class="lib-row">
+        <div class="field-block"><label>EA a gastar</label><input type="number" id="li_ea_c" min="0" value="0"></div>
+        <button type="button" class="btn btn-primary btn-sm" id="btnControlada">Rolar</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btnControladaGastar">Gastar EA da ficha</button>
+      </div>
+      <div class="lib-out" id="li_c_prev"></div>
+      <div class="lib-out" id="li_c_res"></div>
+    </div>
+
+    <div data-lib-panel="bruta" class="hidden">
+      <p class="hint">Libera energia em área, sem controle: o dano é um teste de Quantidade de EA. Você gasta o dobro de EA, e a parte extra é reduzida por outro teste de Quantidade de EA.</p>
+      <div class="lib-row">
+        <div class="field-block"><label>EA a liberar</label><input type="number" id="li_ea_b" min="0" value="0"></div>
+        <button type="button" class="btn btn-primary btn-sm" id="btnBruta">Rolar</button>
+        <button type="button" class="btn btn-ghost btn-sm" id="btnBrutaGastar">Gastar EA da ficha</button>
+      </div>
+      <div class="lib-out" id="li_b_prev"></div>
+      <div class="lib-out" id="li_b_res"></div>
+    </div>
+  </section>
+
+
+---------- 1.5  Regras de referência (no fim do ficha.html) ----------
+ENCONTRAR estas três linhas:
+
+        <li><strong>Vida:</strong> 10 por ponto de grau de Vigor.</li>
+        <li><strong>Bloquear:</strong> 5 + pontos de grau do Vigor.</li>
+        <li><strong>CD:</strong> pontos de grau de Agilidade + pontos de grau de Vigor.</li>
+
+TROCAR POR:
+
+        <li><strong>Vida:</strong> cada ponto de Vigor vale o valor da sua faixa de 3 pontos: G4 10, G3 11, semi G2 12, G2 13, semi G1 14, G1 15, Especial 20, Especial+ 25, Calamidade 50.</li>
+        <li><strong>Bloquear:</strong> anula dano igual ao Vigor (pontos de grau) + o dano da arma.</li>
+        <li><strong>Defesa:</strong> 10 + o maior entre Vigor e Agilidade. Esquivar soma a Velocidade.</li>
+        <li><strong>Dano desarmado:</strong> definido pelo grau de Combate; soma-se ao dano da arma. Manobras causam o dano mínimo do desarmado.</li>
+        <li><strong>Peso:</strong> limite igual ao Vigor, máximo o dobro; a cada 2 pontos acima do limite, −1 em Agilidade e Velocidade.</li>
+
+
+#####################################################################
+# 2) public/ficha.css  — cole no FINAL do arquivo
+#####################################################################
+
+.derived-value.small{ font-size:15px; }
+.rolagem{ font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--gold); margin-left:10px; }
+
+.peso-resumo{ font-size:12.5px; padding:9px 12px; border:1px solid var(--panel-line); background:var(--panel2); margin-bottom:14px; }
+.peso-resumo.ok{ color:var(--paper-dim); }
+.peso-resumo.warn{ color:var(--gold); border-color:var(--gold); }
+.peso-resumo.over{ color:var(--blood-bright); border-color:var(--blood-bright); }
+
+.lib-tabs{ display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap; }
+.lib-tab{ background:transparent; border:1px solid var(--panel-line); color:var(--paper-dim); padding:8px 14px; font-size:12.5px; }
+.lib-tab:hover{ color:var(--paper); border-color:var(--curse-glow); }
+.lib-tab.active{ color:var(--paper); background:rgba(124,42,232,.22); border-color:var(--curse-glow); }
+.lib-row{ display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px; }
+.lib-row .field-block{ margin-bottom:0; width:150px; }
+.lib-out{ font-size:13px; color:var(--paper-dim); line-height:1.7; margin-bottom:8px; }
+.lib-out strong{ color:var(--gold); font-family:'JetBrains Mono', monospace; }
+
+
+#####################################################################
+# 3) public/itens.html  (campo Peso)
+#####################################################################
+
+---------- 3.1  Campo no modal ----------
+ENCONTRAR:
+
+    <div class="field-block">
+      <label>Descrição</label>
+
+TROCAR POR (adiciona o campo Peso antes da Descrição):
+
+    <div class="field-block">
+      <label>Peso</label>
+      <input type="number" id="itPeso" min="0" step="0.5" value="1">
+    </div>
+    <div class="field-block">
+      <label>Descrição</label>
+
+---------- 3.2  Limpar o campo ao abrir o modal ----------
+ENCONTRAR:
+
+    document.getElementById('itDano').value = '';
+
+TROCAR POR:
+
+    document.getElementById('itDano').value = '';
+    document.getElementById('itPeso').value = '1';
+
+---------- 3.3  Enviar o peso ----------
+ENCONTRAR:
+
+        dano: document.getElementById('itDano').value.trim(),
+
+TROCAR POR:
+
+        dano: document.getElementById('itDano').value.trim(),
+        peso: document.getElementById('itPeso').value === '' ? 1 : Number(document.getElementById('itPeso').value),
+
+---------- 3.4  Mostrar o peso no card ----------
+ENCONTRAR:
+
+          ${it.dano ? `<span class="item-tag">dano: ${escapeHtml(it.dano)}</span>` : ''}
+
+TROCAR POR:
+
+          ${it.dano ? `<span class="item-tag">dano: ${escapeHtml(it.dano)}</span>` : ''}
+          <span class="item-tag">peso: ${typeof it.peso === 'number' ? it.peso : 1}</span>
+
+
+#####################################################################
+# 4) public/livro.html
+#####################################################################
+
+---------- 4.1  Índice ----------
+ENCONTRAR:
+
+    <a href="#exemplos">11. Exemplo completo</a>
+
+TROCAR POR:
+
+    <a href="#combate">11. Combate e Defesa</a>
+    <a href="#peso">12. Peso dos Itens</a>
+    <a href="#liberacao">13. Liberação de Energia</a>
+    <a href="#exemplos">14. Exemplo completo</a>
+
+---------- 4.2  Capítulo 4 (Status) ----------
+ENCONTRAR o capítulo inteiro, de <details class="cap" id="status"> até o </details> dele, e TROCAR POR:
+
+    <details class="cap" id="status">
+      <summary>4. Status</summary>
+      <div class="cap-body">
+        <h3>Vida</h3>
+        <p>Definida pelo <strong>Vigor</strong>. Cada ponto de grau vale uma quantidade de Vida que depende da <strong>faixa de 3 pontos</strong> em que ele está: quanto mais forte o grau, mais cada ponto rende.</p>
+        <div class="tbl-wrap">
+          <table class="t">
+            <tr><th>Faixa de Vigor</th><th>Vida por ponto</th></tr>
+            <tr><td>G4 (-G4, G4, +G4)</td><td>10</td></tr>
+            <tr><td>G3</td><td>11</td></tr>
+            <tr><td>semi G2</td><td>12</td></tr>
+            <tr><td>G2</td><td>13</td></tr>
+            <tr><td>semi G1</td><td>14</td></tr>
+            <tr><td>G1</td><td>15</td></tr>
+            <tr><td>semi Especial</td><td>20</td></tr>
+            <tr><td>Especial</td><td>25</td></tr>
+            <tr><td>Calamidade</td><td>50</td></tr>
+          </table>
+        </div>
+        <div class="formula">Vida máxima = soma, ponto a ponto, do valor da faixa de cada ponto de Vigor</div>
+        <div class="exemplo"><b>Exemplo:</b> Vigor +G3 (6 pts) → 3 pontos de G4 × 10 + 3 pontos de G3 × 11 = <b>63 de Vida</b>.</div>
+        <h3>Bloquear</h3>
+        <p>Ao bloquear, você anula o dano de golpes igual ao seu <strong>Vigor</strong> (pontos de grau) somado ao <strong>dano da sua arma</strong>. Na ficha, o valor mostrado é só o Vigor: some o dano da arma na hora.</p>
+        <div class="formula">Bloquear = pontos de Vigor + dano da arma</div>
+        <div class="exemplo"><b>Exemplo:</b> as manoplas do Karu dão 4d4 de dano, então um bloqueio dele anula 4 + 4d4.</div>
+        <h3>Defesa</h3>
+        <p>A defesa natural é 10 somado ao maior valor entre Vigor e Agilidade (pontos de grau).</p>
+        <div class="formula">Defesa = 10 + maior entre (pontos de Vigor, pontos de Agilidade)</div>
+      </div>
+    </details>
+
+---------- 4.3  Novos capítulos (cole ANTES de <details class="cap" id="exemplos">) ----------
+
+    <details class="cap" id="combate">
+      <summary>11. Combate e Defesa</summary>
+      <div class="cap-body">
+        <h3>Ataque desarmado</h3>
+        <p>O dano do ataque desarmado depende do seu grau de <strong>Combate</strong>. Os três valores de cada linha são para o grau com menos (-), normal e mais (+). Esse dano é somado ao dano da sua arma.</p>
+        <div class="tbl-wrap">
+          <table class="t">
+            <tr><th>Combate</th><th>Dados</th><th>-</th><th>normal</th><th>+</th></tr>
+            <tr><td>G4</td><td>1d4</td><td>-1</td><td>0</td><td>0</td></tr>
+            <tr><td>G3</td><td>1d6</td><td>0</td><td>+1</td><td>+2</td></tr>
+            <tr><td>semi G2</td><td>1d6+1d4</td><td>+1</td><td>+2</td><td>+3</td></tr>
+            <tr><td>G2</td><td>1d8+1d6</td><td>+2</td><td>+3</td><td>+4</td></tr>
+            <tr><td>semi G1</td><td>1d10+2d4</td><td>+3</td><td>+4</td><td>+5</td></tr>
+            <tr><td>G1</td><td>2d10</td><td>+4</td><td>+5</td><td>+6</td></tr>
+            <tr><td>semi Especial</td><td>4d6</td><td>+2</td><td>+3</td><td>+4</td></tr>
+            <tr><td>Especial</td><td>6d6</td><td>+2</td><td>+4</td><td>+6</td></tr>
+          </table>
+        </div>
+        <div class="exemplo"><b>Exemplo:</b> o Eddie, com a espada, causa 2d12 + 1d6 + 1d4 + 1.</div>
+        <h3>Manobras de combate</h3>
+        <p>O dano causado em manobras de combate é igual ao <strong>dano mínimo</strong> de um ataque desarmado.</p>
+        <div class="exemplo"><b>Exemplo:</b> o Kan causa 5 de dano em qualquer manobra de combate.</div>
+        <h3>Calamidades</h3>
+        <p>Feiticeiros Calamitosos são especiais: não seguem a tabela. Cada um tem o dano de um <strong>Especial +</strong> (6d6+6), e habilidades extras de combate únicas, baseadas em cada um dos pontos além de -Calamidade.</p>
+        <h3>Ações de combate</h3>
+        <ul>
+          <li><strong>Contra-atacar.</strong></li>
+          <li><strong>Esquivar:</strong> some sua Velocidade na defesa natural para se esquivar do golpe.</li>
+          <li><strong>Bloquear:</strong> anula o dano de golpes igual ao seu Vigor + o dano da sua arma.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details class="cap" id="peso">
+      <summary>12. Peso dos Itens</summary>
+      <div class="cap-body">
+        <p>Todo item tem um <strong>peso</strong>, definido no Catálogo de Itens (itens antigos pesam 1). Você carrega, sem penalidade, um peso total igual ao seu <strong>Vigor</strong> (pontos de grau). O máximo é o <strong>dobro do Vigor</strong>.</p>
+        <p>A cada <strong>2 pontos</strong> acima do seu limite, você perde 1 ponto de <strong>Velocidade e de Agilidade</strong>. A ficha calcula isso sozinha.</p>
+        <div class="formula">Penalidade = (peso total − Vigor) ÷ 2, arredondado para baixo</div>
+        <div class="exemplo"><b>Exemplo:</b> Vigor G3 (5 pts) carregando peso 9: 4 acima do limite → <b>−2</b> em Agilidade e Velocidade.</div>
+      </div>
+    </details>
+
+    <details class="cap" id="liberacao">
+      <summary>13. Liberação de Energia</summary>
+      <div class="cap-body">
+        <p>Uma ação nova: liberar a energia amaldiçoada. Existem duas formas, <strong>imbuir</strong> e <strong>disparar</strong>. A ficha tem uma calculadora para as duas.</p>
+        <h3>Imbuir</h3>
+        <p>Ao imbuir um objeto, ele se fortifica. A cada <strong>10 pontos de EA</strong>, aumenta em 1 o dano e a resistência dele. Sempre que atacar com o objeto, causa o dano da imbuição. Sempre que ele levar dano ou bloquear, perde pontos de imbuição iguais ao dano levado, e esse dano só conta depois da resistência do objeto.</p>
+        <div class="exemplo"><b>Exemplo:</b> se o Kan bloqueia com a espada, reduz o dano em 2d10 + Vigor. Com 5 de imbuição, ele só perde imbuição se o dano for maior que o bloqueio dele.</div>
+        <h3>Disparar</h3>
+        <p><strong>Controlado:</strong> dispara a energia em um alvo, causando <strong>1d4 a cada 10 pontos gastos</strong>, com um teste de Refino para acertar.</p>
+        <p><strong>Bruto:</strong> libera quantidades maiores de energia em área, sem controle. Faça um teste de Quantidade de EA: o resultado é o dano. Você gasta o <strong>dobro</strong> de energia, e a quantidade extra é reduzida por outro teste de Quantidade de EA.</p>
+      </div>
+    </details>
+
+---------- 4.4  Capítulo do exemplo completo ----------
+ENCONTRAR:
+
+      <summary>11. Exemplo completo: montando um feiticeiro</summary>
+
+TROCAR POR:
+
+      <summary>14. Exemplo completo: montando um feiticeiro</summary>
+
+ENCONTRAR:
+
+          <li>Vigor <strong>G3</strong> (5 pts) → Vida <strong>50</strong>, Bloquear <strong>10</strong>.</li>
+
+TROCAR POR:
+
+          <li>Vigor <strong>G3</strong> (5 pts) → Vida 3×10 + 2×11 = <strong>52</strong>, Bloquear <strong>5</strong> (+ dano da arma), Defesa <strong>15</strong> (10 + Vigor).</li>
