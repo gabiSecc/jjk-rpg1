@@ -43,6 +43,10 @@ function setPath(obj, path, value){
 function fmt(n){ return Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 2 }); }
 function sinal(n){ return (n > 0 ? '+' : '') + fmt(n); }
 
+// Tolerantes: se um elemento novo ainda não existir no HTML, a ficha continua carregando.
+function on(id, ev, fn){ const el = document.getElementById(id); if(el) el.addEventListener(ev, fn); }
+function setTxt(id, txt){ const el = document.getElementById(id); if(el) el.textContent = txt; }
+
 // ---------- dados ----------
 function rolarDados(qtd, faces){
   let total = 0; const rolls = [];
@@ -446,15 +450,15 @@ function renderStatusDerivado(){
   document.getElementById('disp_vidaMax').textContent = fmt(d.vidaMax);
   document.getElementById('disp_eaMax').textContent = fmt(d.eaMax);
   document.getElementById('disp_bloquear').textContent = fmt(d.bloquear);
-  document.getElementById('disp_defesa').textContent = fmt(d.defesa);
-  document.getElementById('disp_esquivar').textContent = fmt(d.defesa + pontosEfetivos('velocidade'));
+  setTxt('disp_defesa', fmt(d.defesa));
+  setTxt('disp_esquivar', fmt(d.defesa + pontosEfetivos('velocidade')));
   document.getElementById('disp_output').textContent = fmt(d.output);
   STATS_BONUS.forEach(s => setBonusTag(s.key, bt[s.key]));
 
   // dano desarmado (pelo grau de Combate) e dano mínimo para manobras
   const dd = danoDesarmado(grauParaPontos(ficha.atributos.combate));
-  document.getElementById('disp_danoDesarmado').textContent = dd.texto + (dd.calamidade ? ' (Especial +)' : '');
-  document.getElementById('disp_manobra').textContent = fmt(dd.minimo);
+  setTxt('disp_danoDesarmado', dd.texto + (dd.calamidade ? ' (Especial +)' : ''));
+  setTxt('disp_manobra', fmt(dd.minimo));
 
   const bf = somaBlackFlash(ficha.blackFlash.historico);
   const n = ficha.blackFlash.historico.length;
@@ -473,11 +477,11 @@ function renderStatusDerivado(){
   atualizarModificadores();
 }
 
-document.getElementById('btnRolarDano').addEventListener('click', () => {
+on('btnRolarDano', 'click', () => {
   const dd = danoDesarmado(grauParaPontos(ficha.atributos.combate));
   const r = rolarExpr(dd.dados);
   const total = Math.max(0, r.total + dd.mod);
-  document.getElementById('rolagemDano').textContent = `${r.detalhe} ${dd.mod >= 0 ? '+' : '−'} ${Math.abs(dd.mod)} = ${total}`;
+  setTxt('rolagemDano', `${r.detalhe} ${dd.mod >= 0 ? '+' : '−'} ${Math.abs(dd.mod)} = ${total}`);
 });
 
 // ---------- BÔNUS TEMPORÁRIOS ----------
@@ -850,8 +854,8 @@ document.getElementById('btnAddInvItem').addEventListener('click', () => {
 // ============================================================
 const libCusto = { controlada: 0, bruta: 0 };
 
-function numeroDe(id){ return Math.max(0, Math.floor(Number(document.getElementById(id).value) || 0)); }
-function setHtml(id, html){ document.getElementById(id).innerHTML = html; }
+function numeroDe(id){ const el = document.getElementById(id); return el ? Math.max(0, Math.floor(Number(el.value) || 0)) : 0; }
+function setHtml(id, html){ const el = document.getElementById(id); if(el) el.innerHTML = html; }
 
 function gastarEA(custo){
   if(!custo){ toast('Faça a rolagem/cálculo antes de gastar a EA.', true); return; }
@@ -891,16 +895,16 @@ document.querySelectorAll('[data-lib-tab]').forEach(btn => {
   });
 });
 
-document.getElementById('li_ea').addEventListener('input', atualizarImbuir);
-document.getElementById('li_ea_c').addEventListener('input', atualizarControlada);
-document.getElementById('li_ea_b').addEventListener('input', atualizarBruta);
+on('li_ea', 'input', atualizarImbuir);
+on('li_ea_c', 'input', atualizarControlada);
+on('li_ea_b', 'input', atualizarBruta);
 
 // Imbuir: gastar EA
-document.getElementById('btnImbuirGastar').addEventListener('click', () => {
+on('btnImbuirGastar', 'click', () => {
   gastarEA(Math.floor(numeroDe('li_ea') / 10) * 10);
 });
 // Imbuir: dano sofrido pelo objeto (a redução, ex. o bloqueio, é informada à mão)
-document.getElementById('btnImbuirDano').addEventListener('click', () => {
+on('btnImbuirDano', 'click', () => {
   const atual = numeroDe('li_imb_atual');
   const dano = numeroDe('li_imb_dano');
   const reducao = numeroDe('li_imb_red');
@@ -912,7 +916,7 @@ document.getElementById('btnImbuirDano').addEventListener('click', () => {
 });
 
 // Disparar controlado
-document.getElementById('btnControlada').addEventListener('click', () => {
+on('btnControlada', 'click', () => {
   const n = Math.floor(numeroDe('li_ea_c') / 10);
   if(n < 1){ toast('Informe pelo menos 10 de EA.', true); return; }
   const atk = rolarTeste(grauParaPontos(ficha.atributos.refinoEA));
@@ -922,10 +926,10 @@ document.getElementById('btnControlada').addEventListener('click', () => {
     `Teste de Refino: <strong>${atk.texto}</strong><br>` +
     `Dano: ${n}d4[${dano.rolls.join(',')}] = <strong>${dano.total}</strong> · Custo: ${n * 10} de EA`);
 });
-document.getElementById('btnControladaGastar').addEventListener('click', () => gastarEA(libCusto.controlada));
+on('btnControladaGastar', 'click', () => gastarEA(libCusto.controlada));
 
 // Disparar bruto
-document.getElementById('btnBruta').addEventListener('click', () => {
+on('btnBruta', 'click', () => {
   const ea = numeroDe('li_ea_b');
   if(ea < 1){ toast('Informe a EA a liberar.', true); return; }
   const pts = grauParaPontos(ficha.atributos.quantidadeEA);
@@ -939,7 +943,7 @@ document.getElementById('btnBruta').addEventListener('click', () => {
     `Redução do custo extra: ${reducao.texto}<br>` +
     `Custo: ${ea} + ${extra} (extra após a redução) = <strong>${custo}</strong> de EA`);
 });
-document.getElementById('btnBrutaGastar').addEventListener('click', () => gastarEA(libCusto.bruta));
+on('btnBrutaGastar', 'click', () => gastarEA(libCusto.bruta));
 
 // ---------- TABELA DE GRAU (referência) ----------
 function renderTabelaGrau(){
