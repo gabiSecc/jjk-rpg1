@@ -451,9 +451,11 @@ function renderStatusDerivado(){
   document.getElementById('disp_eaMax').textContent = fmt(d.eaMax);
   document.getElementById('disp_bloquear').textContent = fmt(d.bloquear);
   setTxt('disp_defesa', fmt(d.defesa));
+  setTxt('disp_cd', fmt(d.defesa)); // HTML antigo ainda usa o id disp_cd
   setTxt('disp_esquivar', fmt(d.defesa + pontosEfetivos('velocidade')));
   document.getElementById('disp_output').textContent = fmt(d.output);
   STATS_BONUS.forEach(s => setBonusTag(s.key, bt[s.key]));
+  setBonusTag('cd', bt.defesa);
 
   // dano desarmado (pelo grau de Combate) e dano mínimo para manobras
   const dd = danoDesarmado(grauParaPontos(ficha.atributos.combate));

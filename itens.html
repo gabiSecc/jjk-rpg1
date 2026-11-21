@@ -31,7 +31,7 @@
     padding:20px; z-index:200;
   }
   .modal-overlay.show{ display:flex; }
-  .modal{ background:var(--panel); border:1px solid var(--panel-line); max-width:460px; width:100%; padding:24px; position:relative; }
+  .modal{ background:var(--panel); border:1px solid var(--panel-line); max-width:460px; width:100%; padding:24px; position:relative; max-height:92vh; overflow:auto; }
   .modal::before{ content:""; position:absolute; top:0; left:0; width:36px; height:2px; background:var(--curse); }
   .field-block{ margin-bottom:14px; }
   .modal-actions{ display:flex; gap:10px; justify-content:flex-end; margin-top:18px; }
@@ -83,6 +83,10 @@
       <input type="text" id="itDano" placeholder="ex: 2d6 + EA">
     </div>
     <div class="field-block">
+      <label>Peso</label>
+      <input type="number" id="itPeso" min="0" step="0.5" value="1">
+    </div>
+    <div class="field-block">
       <label>Descrição</label>
       <textarea id="itDesc" rows="3" placeholder="Efeitos, história, uso..."></textarea>
     </div>
@@ -126,7 +130,7 @@
       }
       itens.forEach(it => grid.appendChild(renderItem(it)));
     }catch(err){
-      grid.innerHTML = '<div class="empty-state">Erro ao carregar: ' + err.message + '</div>';
+      grid.innerHTML = '<div class="empty-state">Erro ao carregar: ' + escapeHtml(err.message) + '</div>';
     }
   }
 
@@ -134,6 +138,7 @@
     const card = document.createElement('div');
     card.className = 'item-card';
     const podeExcluir = session.role === 'master' || it.criadoPorUserKey === session.userKey;
+    const peso = typeof it.peso === 'number' ? it.peso : 1;
     card.innerHTML = `
       ${podeExcluir ? '<button class="item-delete" type="button" title="Excluir item">✕</button>' : ''}
       ${it.imagemUrl
@@ -144,6 +149,7 @@
         <div class="item-tags">
           ${it.tipo ? `<span class="item-tag">${escapeHtml(it.tipo)}</span>` : ''}
           ${it.dano ? `<span class="item-tag">dano: ${escapeHtml(it.dano)}</span>` : ''}
+          <span class="item-tag">peso: ${escapeHtml(peso)}</span>
         </div>
         <div class="item-desc">${escapeHtml(it.descricao)}</div>
         <div class="item-meta">criado por ${escapeHtml(it.criadoPor)}</div>
@@ -167,6 +173,7 @@
     document.getElementById('itNome').value = '';
     document.getElementById('itTipo').value = '';
     document.getElementById('itDano').value = '';
+    document.getElementById('itPeso').value = '1';
     document.getElementById('itDesc').value = '';
     document.getElementById('itImg').value = '';
     document.getElementById('previewImg').style.display = 'none';
@@ -178,16 +185,23 @@
   document.getElementById('itImg').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if(!file) return;
-    const { base64, mimeType } = await fileToBase64(file);
-    imagemPendente = { base64, mimeType };
-    const prev = document.getElementById('previewImg');
-    prev.src = 'data:' + mimeType + ';base64,' + base64;
-    prev.style.display = 'block';
+    try{
+      const { base64, mimeType } = await fileToBase64(file);
+      imagemPendente = { base64, mimeType };
+      const prev = document.getElementById('previewImg');
+      prev.src = 'data:' + mimeType + ';base64,' + base64;
+      prev.style.display = 'block';
+    }catch(err){
+      toast('Erro ao ler a imagem: ' + err.message, true);
+    }
   });
 
   document.getElementById('btnSalvarItem').addEventListener('click', async () => {
     const nome = document.getElementById('itNome').value.trim();
     if(!nome){ toast('Dê um nome ao item.', true); return; }
+
+    const pesoTxt = document.getElementById('itPeso').value;
+    const peso = pesoTxt === '' ? 1 : Number(pesoTxt);
 
     const btn = document.getElementById('btnSalvarItem');
     btn.disabled = true; btn.textContent = 'Salvando...';
@@ -201,6 +215,7 @@
         nome,
         tipo: document.getElementById('itTipo').value.trim(),
         dano: document.getElementById('itDano').value.trim(),
+        peso,
         descricao: document.getElementById('itDesc').value.trim(),
         imagemUrl
       });
